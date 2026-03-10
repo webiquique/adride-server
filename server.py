@@ -1,5 +1,5 @@
 # ========================================
-# 🚗 ADRIDE SERVER - Backend Flask para Render
+# ADRIDE SERVER - Backend Flask para Render
 # ========================================
 # Servidor para recibir heartbeats de tablets
 # y servir dashboard en tiempo real
