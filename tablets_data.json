@@ -1,0 +1,23 @@
+{
+  "ebbb31a8095b22c1": {
+    "device_id": "ebbb31a8095b22c1",
+    "model": "KFMUWI",
+    "android_version": "9",
+    "app_version": "1.0",
+    "timestamp": "1772928583488",
+    "total_impressions": "0",
+    "current_ad_index": "0",
+    "is_charging": "true",
+    "network_type": "wifi",
+    "ads_count": "0",
+    "ad_stats": "{\"Restaurante El Marino\":{\"impressions\":53,\"lastShown\":1772928384208,\"totalTime\":318000},\"Gimnasio FitZone\":{\"impressions\":51,\"lastShown\":1772928390233,\"totalTime\":306000},\"Farmacia ZOFRI\":{\"impressions\":49,\"lastShown\":1772928396256,\"totalTime\":294000},\"Tour Iquique\":{\"impressions\":47,\"lastShown\":1772928378179,\"totalTime\":282000}}",
+    "received_at": "2026-03-07 21:09:44",
+    "last_seen": 1772928584.871451
+  },
+  "test123": {
+    "device_id": "test123",
+    "total_impressions": 5,
+    "received_at": "2026-03-09 22:58:34",
+    "last_seen": 1773107914.021417
+  }
+}
