@@ -132,68 +132,106 @@
             }
         }
         
-        function renderTablets(tablets) {
-            const container = document.getElementById('tablets-container');
-            const deviceIds = Object.keys(tablets);
-            
-            if (deviceIds.length === 0) {
-                container.innerHTML = '<p style="text-align:center;opacity:0.6;">⏳ Esperando datos de tablets...</p>';
-                return;
-            }
-            
-            container.innerHTML = deviceIds.map(deviceId => {
-                const tablet = tablets[deviceId];
-                const lastSeen = tablet.last_seen ? new Date(tablet.last_seen * 1000) : null;
-                const now = new Date();
-                const minutesSinceLastSeen = lastSeen ? Math.floor((now - lastSeen) / 60000) : 999;
-                const isOnline = minutesSinceLastSeen < 10;
-                
-                return `
-                    <div class="tablet-card ${isOnline ? '' : 'inactive'}">
-                        <h3>📱 ${deviceId.substring(0, 16)}...</h3>
-                        <p style="margin-bottom:15px;">
-                            <span class="status ${isOnline ? 'online' : 'offline'}">
-                                ${isOnline ? '🟢 EN LÍNEA' : '🔴 OFFLINE'}
-                            </span>
-                        </p>
-                        <div class="tablet-info">
-                            <div class="info-item">
-                                <label>Modelo</label>
-                                <span>${tablet.model || 'N/A'}</span>
-                            </div>
-                            <div class="info-item">
-                                <label>Android</label>
-                                <span>${tablet.android_version || 'N/A'}</span>
-                            </div>
-                            <div class="info-item">
-                                <label>Impresiones</label>
-                                <span>${tablet.total_impressions || 0}</span>
-                            </div>
-                            <div class="info-item">
-                                <label>Anuncio Actual</label>
-                                <span>#${parseInt(tablet.current_ad_index || 0) + 1}</span>
-                            </div>
-                            <div class="info-item">
-                                <label>Red</label>
-                                <span>${tablet.network_type || 'N/A'}</span>
-                            </div>
-                            <div class="info-item">
-                                <label>Batería</label>
-                                <span>${tablet.is_charging === 'true' ? '🔌 Cargando' : '🔋 Usando batería'}</span>
-                            </div>
-                            <div class="info-item">
-                                <label>Último Ping</label>
-                                <span>${minutesSinceLastSeen} min atrás</span>
-                            </div>
-                            <div class="info-item">
-                                <label>Recibido</label>
-                                <span>${tablet.received_at || 'N/A'}</span>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
+       function renderTablets(data) {
+    const container = document.getElementById('tablets-container');
+    
+    if (!data || !data.tablets || Object.keys(data.tablets).length === 0) {
+        container.innerHTML = '<p style="text-align:center;color:#a0a0a0;">No hay tablets conectadas aún</p>';
+        return;
+    }
+    
+    let html = '';
+    
+    for (const [deviceId, tablet] of Object.entries(data.tablets)) {
+        // Verificar si está online (últimos 10 minutos)
+        const lastSeen = tablet.last_seen || 0;
+        const now = Date.now() / 1000;
+        const isOnline = (now - lastSeen) < 600;
+        
+        // Parsear ad_stats (viene como string JSON)
+        let adStats = {};
+        try {
+            adStats = typeof tablet.ad_stats === 'string' 
+                ? JSON.parse(tablet.ad_stats) 
+                : tablet.ad_stats || {};
+        } catch (e) {
+            console.warn('Error parseando ad_stats:', e);
         }
+        
+        // Calcular total de impresiones desde ad_stats
+        const totalImpressions = Object.values(adStats).reduce((sum, ad) => 
+            sum + (ad.impressions || 0), 0);
+        
+        html += `
+            <div class="tablet-card ${isOnline ? 'online' : 'offline'}" style="
+                background: rgba(210, 40, 169, 0.05);
+                border: 1px solid rgba(210, 40, 169, 0.2);
+                border-radius: 10px;
+                padding: 1.5rem;
+                margin: 1rem 0;
+            ">
+                <div class="tablet-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+                    <h4 style="color:#fffefe;margin:0;">📱 ${deviceId.substring(0, 12)}...</h4>
+                    <span style="
+                        background: ${isOnline ? 'linear-gradient(135deg, #00c853, #00e676)' : 'linear-gradient(135deg, #ff1744, #ff5252)'};
+                        color: white;
+                        padding: 0.25rem 0.75rem;
+                        border-radius: 20px;
+                        font-size: 0.8rem;
+                        font-weight: bold;
+                    ">
+                        ${isOnline ? '🟢 EN LÍNEA' : '🔴 SIN CONEXIÓN'}
+                    </span>
+                </div>
+                
+                <div class="tablet-info" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem;margin-bottom:1rem;">
+                    <div style="background:rgba(0,0,0,0.2);padding:0.5rem;border-radius:5px;">
+                        <strong style="color:#d228a9;">Modelo:</strong><br>
+                        <span style="color:#a0a0a0;">${tablet.model || 'Desconocido'}</span>
+                    </div>
+                    <div style="background:rgba(0,0,0,0.2);padding:0.5rem;border-radius:5px;">
+                        <strong style="color:#d228a9;">Red:</strong><br>
+                        <span style="color:#a0a0a0;">${tablet.network_type || 'Desconocida'}</span>
+                    </div>
+                    <div style="background:rgba(0,0,0,0.2);padding:0.5rem;border-radius:5px;">
+                        <strong style="color:#d228a9;">Impresiones:</strong><br>
+                        <span style="color:#00e676;font-weight:bold;">${totalImpressions.toLocaleString()}</span>
+                    </div>
+                    <div style="background:rgba(0,0,0,0.2);padding:0.5rem;border-radius:5px;">
+                        <strong style="color:#d228a9;">Última conexión:</strong><br>
+                        <span style="color:#a0a0a0;">${tablet.received_at || 'Nunca'}</span>
+                    </div>
+                </div>
+                
+                ${Object.keys(adStats).length > 0 ? `
+                <div class="ad-stats" style="
+                    background: rgba(0, 101, 237, 0.05);
+                    border: 1px solid rgba(0, 101, 237, 0.2);
+                    border-radius: 5px;
+                    padding: 1rem;
+                ">
+                    <h5 style="color:#0065ed;margin:0 0 0.5rem 0;">📊 Anuncios mostrados:</h5>
+                    <ul style="list-style:none;padding:0;margin:0;">
+                        ${Object.entries(adStats).map(([name, stats]) => `
+                            <li style="
+                                display:flex;
+                                justify-content:space-between;
+                                padding:0.5rem 0;
+                                border-bottom:1px solid rgba(255,255,255,0.1);
+                            ">
+                                <span style="color:#fffefe;">${name}</span>
+                                <span style="color:#00e676;font-weight:bold;">${stats.impressions} impresiones</span>
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+                ` : ''}
+            </div>
+        `;
+    }
+    
+    container.innerHTML = html;
+}
         
         function updateStats(tablets) {
             const deviceIds = Object.keys(tablets);
