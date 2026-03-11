@@ -154,12 +154,14 @@
     }
     
     let html = '';
+    const NOW = Date.now() / 1000;  // Timestamp actual en segundos
+    const OFFLINE_THRESHOLD = 600;   // 10 minutos en segundos
     
     for (const [deviceId, tablet] of Object.entries(data.tablets)) {
-        // Verificar si está online (últimos 10 minutos)
+        // 👇 LÓGICA MEJORADA PARA DETECTAR ONLINE/OFFLINE
         const lastSeen = tablet.last_seen || 0;
-        const now = Date.now() / 1000;
-        const isOnline = (now - lastSeen) < 600;
+        const secondsAgo = NOW - lastSeen;
+        const isOnline = secondsAgo < OFFLINE_THRESHOLD;
         
         // Parsear ad_stats (viene como string JSON)
         let adStats = {};
@@ -171,27 +173,36 @@
             console.warn('Error parseando ad_stats:', e);
         }
         
-        // Calcular total de impresiones desde ad_stats
+        // Calcular total de impresiones
         const totalImpressions = Object.values(adStats).reduce((sum, ad) => 
             sum + (ad.impressions || 0), 0);
         
+        // Texto para "última conexión"
+        const lastSeenText = isOnline 
+            ? 'Ahora' 
+            : `hace ${Math.round(secondsAgo / 60)} min`;
+        
         html += `
-            <div class="tablet-card ${isOnline ? 'online' : 'offline'}" style="
+            <div class="tablet-card" style="
                 background: rgba(210, 40, 169, 0.05);
-                border: 1px solid rgba(210, 40, 169, 0.2);
+                border: 1px solid rgba(210, 40, 169, ${isOnline ? '0.3' : '0.1'});
                 border-radius: 10px;
                 padding: 1.5rem;
                 margin: 1rem 0;
+                opacity: ${isOnline ? '1' : '0.7'};
             ">
                 <div class="tablet-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
                     <h4 style="color:#fffefe;margin:0;">📱 ${deviceId.substring(0, 12)}...</h4>
                     <span style="
-                        background: ${isOnline ? 'linear-gradient(135deg, #00c853, #00e676)' : 'linear-gradient(135deg, #ff1744, #ff5252)'};
+                        background: ${isOnline 
+                            ? 'linear-gradient(135deg, #00c853, #00e676)' 
+                            : 'linear-gradient(135deg, #ff1744, #ff5252)'};
                         color: white;
                         padding: 0.25rem 0.75rem;
                         border-radius: 20px;
                         font-size: 0.8rem;
                         font-weight: bold;
+                        transition: all 0.3s ease;
                     ">
                         ${isOnline ? '🟢 EN LÍNEA' : '🔴 SIN CONEXIÓN'}
                     </span>
@@ -212,7 +223,7 @@
                     </div>
                     <div style="background:rgba(0,0,0,0.2);padding:0.5rem;border-radius:5px;">
                         <strong style="color:#d228a9;">Última conexión:</strong><br>
-                        <span style="color:#a0a0a0;">${tablet.received_at || 'Nunca'}</span>
+                        <span style="color:#a0a0a0;">${tablet.received_at || 'Nunca'} (${lastSeenText})</span>
                     </div>
                 </div>
                 
