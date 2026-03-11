@@ -119,18 +119,31 @@
         const SERVER_URL = window.location.origin;
         
         async function loadData() {
-            try {
-                const response = await fetch(`${SERVER_URL}/api/tablets`);
-                const data = await response.json();
-                renderTablets(data);
-                updateStats(data);
-                document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
-            } catch (error) {
-                console.error('Error cargando datos:', error);
-                document.getElementById('tablets-container').innerHTML = 
-                    '<p style="text-align:center;color:#ff4757;">⚠️ Error conectando al servidor. ¿Está ejecutándose server.py?</p>';
-            }
+    try {
+        const response = await fetch(`${SERVER_URL}/api/tablets`);
+        
+        // 👇 AGREGA ESTO: Verificar que la respuesta HTTP es exitosa
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`HTTP ${response.status}: ${errorText.substring(0, 200)}`);
         }
+        
+        const data = await response.json();
+        renderTablets(data);
+        updateStats(data);
+        document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
+        
+    } catch (error) {
+        console.error('❌ Error cargando datos:', error);
+        
+        // 👇 Muestra el error real en el dashboard para debugging
+        document.getElementById('tablets-container').innerHTML = 
+            `<p style="text-align:center;color:#ff4757;">
+                ⚠️ Error: ${error.message.substring(0, 150)}...
+                <br><small style="color:#a0a0a0;">Revisa Console (F12) para más detalles</small>
+            </p>`;
+    }
+}
         
        function renderTablets(data) {
     const container = document.getElementById('tablets-container');
