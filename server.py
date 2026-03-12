@@ -278,17 +278,25 @@ def internal_error(error):
 # No necesitas modificar nada aquí para Render
 
 # Bloque para desarrollo local (se ignora en Render)
+# ========================================
+# ENTRY POINT PARA DESARROLLO LOCAL
+# ========================================
 if __name__ == '__main__':
     print("=" * 60)
     print("🚗 ADRIDE SERVER - Dashboard Backend")
     print("=" * 60)
     print(f"🔑 API Key configurada: {'✅ Sí' if API_KEY != 'dev_key_123' else '⚠️ Default'}")
     print(f"📊 Tablets cargadas: {len(tablets_data)}")
+    print(f"🔧 Modo debug: {'✅ Sí' if debug_mode else '❌ No'}")
     print("🌐 Servidor corriendo en: http://0.0.0.0:5000")
     print("🔗 Dashboard: http://localhost:5000")
     print("🔗 API Tablets: http://localhost:5000/api/tablets")
     print("🔗 Health Check: http://localhost:5000/health")
     print("=" * 60)
     
-    # debug=True solo para desarrollo local (Render usa production)
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=True)
+    # 👇 Determinar modo debug desde variable de entorno
+    debug_mode = os.environ.get('FLASK_ENV', 'production') == 'development'
+    
+    # debug solo en desarrollo local, nunca en producción
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=debug_mode)
+    
