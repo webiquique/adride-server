@@ -15,7 +15,7 @@
         <div class="container">
             <div class="logo">
                 <!-- Si tienes logo, descomenta esto: -->
-                <img src="/adride-server/svgimages/logoadridetres.svg" alt="AdRide Logo" height="70"> 
+                <img src="/svgimages/logoadridetres.svg" alt="AdRide Logo" height="70"> 
                 <!--<i class="fas fa-car-side"></i>-->
                 <!--<span>AdRide</span>-->
             </div>
@@ -180,16 +180,30 @@
                     </div>
                 </div>
                 <form class="contact-form" action="https://formspree.io/f/xzdjdlov" method="POST">
-                    <input type="hidden" name="_subject" value="Nueva consulta desde web AdRide">
-<input type="hidden" name="_autoresponse" value="Gracias por contactar a AdRide Iquique. Hemos recibido tu mensaje y te responderemos en menos de 24 horas.">
-                    <select>
-                        <option value="">Soy...</option>
-                        <option value="anunciante">Anunciante</option>
-                        <option value="conductor">Conductor Uber</option>
+    
+                  <!-- Campos ocultos para configuración de Formspree -->
+                  <input type="hidden" name="_subject" value="Nueva consulta desde web AdRide">
+                  <input type="hidden" name="_autoresponse" value="Gracias por contactar a AdRide Iquique. Hemos recibido tu mensaje y te responderemos en menos de 24 horas.">
+                  
+    
+                  <!-- Campo: Nombre -->
+                  <input type="text" name="nombre" placeholder="Nombre completo" required>
+                  <input type="email" name="email" placeholder="Email de contacto" required>
+                  <input type="tel" name="telefono" placeholder="Teléfono / WhatsApp">
+
+                    <select name="tipo" required>
+                      <option value="">Soy...</option>
+                      <option value="anunciante">Anunciante (quiero publicitar)</option>
+                      <option value="conductor">Conductor Uber (quiero participar)</option>
+                      <option value="otro">Otro</option>
                     </select>
-                    <textarea placeholder="Mensaje y Su Correo" rows="5" required></textarea>
+
+                    <textarea name="mensaje" placeholder="Cuéntanos más sobre tu interés..." rows="5" required></textarea>
+    
                     <button type="submit" class="btn btn-primary">Enviar Mensaje</button>
-                </form>
+                    <input type="hidden" name="_next" value="https://webiquique.github.io/adride-server/#contacto">
+
+             </form>
             </div>
         </div>
     </section>
@@ -202,3 +216,4 @@
     </footer>
 </body>
 </html>
+
