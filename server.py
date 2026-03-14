@@ -282,7 +282,7 @@ def internal_error(error):
 # ENTRY POINT PARA DESARROLLO LOCAL
 # ========================================
 if __name__ == '__main__':
-    # 👇 Definir debug_mode PRIMERO (antes de usarlo en prints)
+    # 👇 DEFINIR debug_mode PRIMERO (antes de cualquier print que lo use)
     debug_mode = os.environ.get('FLASK_ENV', 'production') == 'development'
     
     print("=" * 60)
@@ -290,12 +290,13 @@ if __name__ == '__main__':
     print("=" * 60)
     print(f"🔑 API Key configurada: {'✅ Sí' if API_KEY != 'dev_key_123' else '⚠️ Default'}")
     print(f"📊 Tablets cargadas: {len(tablets_data)}")
-    print(f"🔧 Modo debug: {'✅ Sí' if debug_mode else '❌ No'}")  # ← ✅ Ahora sí funciona
+    print(f"🔧 Modo debug: {'✅ Sí' if debug_mode else '❌ No'}")  # ← ✅ Ahora debug_mode ya existe
     print("🌐 Servidor corriendo en: http://0.0.0.0:5000")
     print("🔗 Dashboard: http://localhost:5000")
     print("🔗 API Tablets: http://localhost:5000/api/tablets")
     print("🔗 Health Check: http://localhost:5000/health")
     print("=" * 60)
     
-   app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=debug_mode)
+    # debug solo en desarrollo local, nunca en producción
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=debug_mode)
     
