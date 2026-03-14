@@ -314,23 +314,33 @@ def calculate_payments():
         payments = []
         
         for device_id, data in tablets_data.items():
-            km_recorridos = km_reports.get(device_id, {}).get(fecha_hoy, 0)
-            impresiones = data.get('total_impressions', 0)
+            # ✅ CONVERTIR A INT para evitar errores de tipo
+            km_recorridos = int(km_reports.get(device_id, {}).get(fecha_hoy, 0) or 0)
+            impresiones = int(data.get('total_impressions', 0) or 0)
             
-            impresiones_por_km = impresiones / max(1, km_recorridos) if km_recorridos > 0 else impresiones
+            # Calcular impresiones por km (evitar división por cero)
+            if km_recorridos > 0:
+                impresiones_por_km = impresiones / km_recorridos
+            else:
+                impresiones_por_km = float(impresiones)  # Si no hay km, usar impresiones como referencia
+            
+            # Detectar fraude (muchas impresiones, pocos km)
             es_posible_fraude = impresiones_por_km > config['max_impresiones_por_km'] and impresiones > 100
             
+            # Calcular pago
             pago_km = km_recorridos * config['tarifa_km']
             pago_impresiones = impresiones * config['tarifa_impresion']
             
+            # Bono horas pico (si km >= 50)
             bono_pico = (pago_km + pago_impresiones) * config['bono_horas_pico_porcentaje'] if km_recorridos >= config['km_minimos_bono'] else 0
             
             pago_total = pago_km + pago_impresiones + bono_pico
             
+            # Penalización por posible fraude
             penalizacion = 0
             if es_posible_fraude:
                 penalizacion = pago_total * 0.5
-                pago_total *= 0.5
+                pago_total *= 0.5  # ← 50% de penalización
             
             payments.append({
                 "device_id": device_id[:12] + "...",
@@ -347,6 +357,7 @@ def calculate_payments():
                 "fecha": fecha_hoy
             })
         
+        # Ordenar por pago total descendente
         payments.sort(key=lambda x: x['pago_total'], reverse=True)
         
         return jsonify({
@@ -359,7 +370,10 @@ def calculate_payments():
         
     except Exception as e:
         print(f"❌ Error calculando pagos: {e}")
+        import traceback
+        traceback.print_exc()  # ← Para ver el error completo en logs
         return jsonify({'status': 'error', 'message': str(e)}), 500
+        
 
 
 @app.route('/api/payments/export/csv', methods=['GET'])
