@@ -64,17 +64,26 @@ def cargar_datos():
     try:
         if os.path.exists(DATA_FILE):
             with open(DATA_FILE, 'r', encoding='utf-8') as f:
-                tablets_data = json.load(f)
+                content = f.read().strip()
+                if content:  # ✅ Verificar que no esté vacío
+                    tablets_data = json.loads(content)
+                else:
+                    tablets_data = {}
             print(f"✅ Tablets cargadas: {len(tablets_data)}")
         
         if os.path.exists(KM_FILE):
             with open(KM_FILE, 'r', encoding='utf-8') as f:
-                km_reports = json.load(f)
-            print(f"✅ Reportes de km cargados: {len(km_reports)} conductores")
+                content = f.read().strip()
+                if content:  # ✅ Verificar que no esté vacío
+                    km_reports = json.loads(content)
+                else:
+                    km_reports = {}
+            print(f"✅ Reportes de km cargados: {len(km_reports)}")
     except Exception as e:
         print(f"⚠️ Error cargando datos: {e}")
         tablets_data = {}
         km_reports = {}
+        
 
 
 # Cargar datos al iniciar el servidor
@@ -336,7 +345,7 @@ def calculate_payments():
             ad_impressions_json = data.get('ad_impressions', None)
             
             # ✅ FALLBACK: Si no existe, intentar leer ad_stats (formato viejo)
-            if not ad_impressions_json and 'ad_stats' in 
+            if not ad_impressions_json and 'ad_stats' in data: 
                 try:
                     ad_stats = json.loads(data['ad_stats']) if isinstance(data['ad_stats'], str) else data['ad_stats']
                     ad_impressions = {nombre: stats.get('impressions', 0) for nombre, stats in ad_stats.items()}
@@ -365,7 +374,7 @@ def calculate_payments():
             ad_impressions_json = data.get('ad_impressions', None)
             
             # ✅ FALLBACK: Leer ad_stats si no hay ad_impressions
-            if not ad_impressions_json and 'ad_stats' in 
+            if not ad_impressions_json and 'ad_stats' in data: 
                 try:
                     ad_stats = json.loads(data['ad_stats']) if isinstance(data['ad_stats'], str) else data['ad_stats']
                     ad_impressions = {nombre: stats.get('impressions', 0) for nombre, stats in ad_stats.items()}
