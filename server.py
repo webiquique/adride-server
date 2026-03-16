@@ -1,62 +1,40 @@
-# ========================================
-# ADRIDE SERVER - Backend Flask para Render
-# ========================================
-# Servidor para recibir heartbeats de tablets
-# y servir dashboard en tiempo real
-# ========================================
-
-# ========================================
-# IMPORTS
-# ========================================
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
-import os
 import json
+import os
 import datetime
-import csv
-import io
 
-# ========================================
-# CONFIGURACIÓN DE LA APP
-# ========================================
-app = Flask(__name__, static_folder='.')  # Servir archivos estáticos desde raíz
-CORS(app)  # Habilitar CORS para todas las rutas
+app = Flask(__name__, static_folder='.')
+CORS(app)  # ✅ Habilitar CORS para el dashboard
 
-# ========================================
-# CONFIGURACIÓN DE SEGURIDAD
-# ========================================
-API_KEY = os.environ.get('API_KEY', 'adride_iquique_2024_secreto')
-
-# ========================================
-# ALMACENAMIENTO DE DATOS
-# ========================================
-# Diccionario en memoria para almacenar datos de tablets
-tablets_data = {}
-
-# ✅ NUEVO: Reporte de kilómetros por conductor
-km_reports = {}
-
-# Archivos para persistencia
+# Archivos de datos
 DATA_FILE = 'tablets_data.json'
 KM_FILE = 'km_reports.json'
 
+# Variables globales
+tablets_data = {}
+km_reports = {}
 
-# ========================================
-# FUNCIONES DE PERSISTENCIA
-# ========================================
-def guardar_datos():
-    """Guarda tablets_data y km_reports en archivos JSON"""
-    try:
-        with open(DATA_FILE, 'w', encoding='utf-8') as f:
-            json.dump(tablets_data, f, indent=2, ensure_ascii=False)
-        
-        with open(KM_FILE, 'w', encoding='utf-8') as f:
-            json.dump(km_reports, f, indent=2, ensure_ascii=False)
-        
-        print(f"💾 Datos guardados: {len(tablets_data)} tablets, {len(km_reports)} conductores")
-    except Exception as e:
-        print(f"⚠️ Error guardando datos: {e}")
+# ✅ CONFIGURACIÓN DE NEGOCIO ADRIDE - PILOTO
+config = {
+    # Tarifas base para conductores
+    "tarifa_km": 15,                    # $15 CLP por km recorrido
+    "tarifa_hora_activa": 500,          # $500 CLP por hora con tablet encendida
+    
+    # Distribución del presupuesto mensual del piloto
+    "presupuesto_total_mensual": 250000,  # $250,000 CLP/mes TOTAL del piloto
+    "porcentaje_para_conductores": 0.40,  # 40% para repartir entre conductores
+    "porcentaje_para_adride": 0.60,       # 60% para sostenibilidad
+    
+    # Cálculos auxiliares
+    "dias_mes": 30,                      # Para prorrateo mensual → diario
+    "km_minimos_bono": 50,              # Km mínimos para bono horas pico
+    "bono_horas_pico_porcentaje": 0.20  # 20% bono adicional si km >= 50
+}
 
+# Calcular fondo diario para conductores
+fondo_conductores_mensual = config["presupuesto_total_mensual"] * config["porcentaje_para_conductores"]
+fondo_conductores_diario = fondo_conductores_mensual / config["dias_mes"]  # ~$3,333/día
 
 def cargar_datos():
     """Carga tablets_data y km_reports desde archivos JSON al iniciar"""
@@ -65,7 +43,7 @@ def cargar_datos():
         if os.path.exists(DATA_FILE):
             with open(DATA_FILE, 'r', encoding='utf-8') as f:
                 content = f.read().strip()
-                if content:  # ✅ Verificar que no esté vacío
+                if content:
                     tablets_data = json.loads(content)
                 else:
                     tablets_data = {}
@@ -74,7 +52,7 @@ def cargar_datos():
         if os.path.exists(KM_FILE):
             with open(KM_FILE, 'r', encoding='utf-8') as f:
                 content = f.read().strip()
-                if content:  # ✅ Verificar que no esté vacío
+                if content:
                     km_reports = json.loads(content)
                 else:
                     km_reports = {}
@@ -83,67 +61,92 @@ def cargar_datos():
         print(f"⚠️ Error cargando datos: {e}")
         tablets_data = {}
         km_reports = {}
-        
 
+def guardar_datos():
+    """Guarda tablets_data y km_reports en archivos JSON"""
+    try:
+        with open(DATA_FILE, 'w', encoding='utf-8') as f:
+            json.dump(tablets_data, f, indent=2, ensure_ascii=False)
+        with open(KM_FILE, 'w', encoding='utf-8') as f:
+            json.dump(km_reports, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        print(f"❌ Error guardando datos: {e}")
 
-# Cargar datos al iniciar el servidor
-cargar_datos()
-
-
-# ========================================
-# MIDDLEWARE / UTILIDADES
-# ========================================
-def verificar_api_key():
-    """Verifica que la petición incluya la API Key correcta"""
-    request_key = request.headers.get('X-API-Key')
-    return request_key == API_KEY
-
-
-# ========================================
-# RUTAS DEL FRONTEND (HTML/JS)
-# ========================================
 @app.route('/')
-def serve_dashboard():
-    """Sirve el archivo dashboard.html como página principal"""
+def index():
+    """Sirve el dashboard HTML"""
     return send_from_directory('.', 'dashboard.html')
 
+@app.route('/health', methods=['GET'])
+def health():
+    """Endpoint de salud del servicio"""
+    return jsonify({
+        "status": "healthy",
+        "service": "adride-server",
+        "tablets_count": len(tablets_data),
+        "timestamp": datetime.datetime.now().isoformat()
+    }), 200
 
-@app.route('/<path:filename>')
-def serve_static(filename):
-    """Sirve archivos estáticos (CSS, JS, imágenes) para el dashboard"""
-    return send_from_directory('.', filename)
+@app.route('/api/heartbeat', methods=['POST'])
+def heartbeat():
+    """Recibe heartbeat de las tablets Android"""
+    try:
+        api_key = request.headers.get('X-API-Key')
+        if api_key != 'adride_iquique_2024_secreto':
+            return jsonify({'status': 'error', 'message': 'API Key inválida'}), 401
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({'status': 'error', 'message': 'Datos inválidos'}), 400
+        
+        device_id = data.get('device_id')
+        if not device_id:
+            return jsonify({'status': 'error', 'message': 'device_id requerido'}), 400
+        
+        # Guardar/actualizar datos de la tablet
+        tablets_data[device_id] = {
+            "device_id": device_id,
+            "model": data.get('model', 'Unknown'),
+            "android_version": data.get('android_version', 'Unknown'),
+            "app_version": data.get('app_version', '1.0'),
+            "timestamp": data.get('timestamp', str(datetime.datetime.now().timestamp())),
+            "total_impressions": data.get('total_impressions', '0'),
+            "uptime_hours": data.get('uptime_hours', '0'),  # ✅ NUEVO: horas activas
+            "network_type": data.get('network_type', 'unknown'),
+            "is_charging": data.get('is_charging', 'false'),
+            "ads_count": data.get('ads_count', '0'),
+            "ad_impressions": data.get('ad_impressions', {}),  # ✅ Impresiones por anuncio
+            "received_at": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            "last_seen": datetime.datetime.now().timestamp()
+        }
+        
+        guardar_datos()
+        
+        print(f"❤️ Heartbeat recibido: {device_id[:12]}... | Impresiones: {data.get('total_impressions', 0)}")
+        
+        return jsonify({
+            "status": "ok",
+            "message": "Heartbeat recibido",
+            "device_id": device_id[:12] + "...",
+            "received_at": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ Error en heartbeat: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
-
-# ========================================
-# RUTAS DE LA API PÚBLICA (GET)
-# ========================================
 @app.route('/api/tablets', methods=['GET'])
 def get_tablets():
-    """
-    Endpoint público para que el dashboard obtenga los datos de todas las tablets.
-    """
-    try:
-        public_data = {}
-        for device_id, data in tablets_data.items():
-            public_data[device_id] = {
-                'device_id': data.get('device_id', 'unknown')[:12] + '...',
-                'total_impressions': data.get('total_impressions', 0),
-                'network_type': data.get('network_type', 'unknown'),
-                'last_seen': data.get('last_seen', 0),
-                'received_at': data.get('received_at', 'never'),
-                'app_version': data.get('app_version', '1.0')
-            }
-        return jsonify({'tablets': public_data, 'count': len(public_data)}), 200
-    except Exception as e:
-        print(f"❌ Error en GET /api/tablets: {e}")
-        return jsonify({'error': str(e), 'status': 'failed'}), 500
-
+    """Obtiene lista de tablets activas"""
+    return jsonify({
+        "count": len(tablets_data),
+        "tablets": tablets_data
+    }), 200
 
 @app.route('/api/stats', methods=['GET'])
 def get_stats():
-    """Endpoint para obtener estadísticas resumidas"""
+    """Obtiene estadísticas resumidas"""
     try:
-        # ✅ CORREGIDO: Convertir a int antes de sumar
         total_impressions = sum(
             int(t.get('total_impressions', 0) or 0) 
             for t in tablets_data.values()
@@ -155,280 +158,116 @@ def get_stats():
         )
         
         return jsonify({
-            'total_tablets': len(tablets_data),
-            'online_tablets': online_count,
-            'total_impressions': total_impressions,
-            'last_update': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            "total_tablets": len(tablets_data),
+            "online_tablets": online_count,
+            "total_impressions": total_impressions,
+            "last_update": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         }), 200
     except Exception as e:
-        print(f"❌ Error en GET /api/stats: {e}")
-        import traceback
-        traceback.print_exc()
+        print(f"❌ Error en stats: {e}")
         return jsonify({'error': str(e)}), 500
-        
-
-
-# ========================================
-# RUTAS DE LA API PROTEGIDA (POST/DELETE)
-# ========================================
-@app.route('/api/heartbeat', methods=['POST'])
-def receive_heartbeat():
-    """
-    Endpoint protegido para recibir heartbeats de las tablets Android.
-    Requiere header: X-API-Key: <tu_clave_secreta>
-    """
-    try:
-        if not verificar_api_key():
-            print(f"⚠️ Intento no autorizado desde: {request.remote_addr}")
-            return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
-        
-        data = request.get_json()
-        if not data:
-            return jsonify({'status': 'error', 'message': 'JSON required'}), 400
-        
-        device_id = data.get('device_id', 'unknown')
-        
-        data['received_at'] = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        data['last_seen'] = datetime.datetime.now().timestamp()
-        data['server_ip'] = request.remote_addr
-        
-        tablets_data[device_id] = data
-        guardar_datos()
-        
-        impresiones = data.get('total_impressions', 0)
-        red = data.get('network_type', 'unknown')
-        print(f"❤️ Heartbeat de: {device_id[:12]}... | Impresiones: {impresiones} | Red: {red}")
-        
-        return jsonify({
-            'status': 'ok', 
-            'message': 'Heartbeat recibido',
-            'device_id': device_id[:12] + '...',
-            'timestamp': data['received_at']
-        }), 200
-        
-    except Exception as e:
-        print(f"❌ Error en POST /api/heartbeat: {e}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-
-@app.route('/api/tablets/<device_id>', methods=['DELETE'])
-def delete_tablet(device_id):
-    """
-    Endpoint protegido para eliminar una tablet de la lista.
-    """
-    try:
-        if not verificar_api_key():
-            return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
-        
-        if device_id in tablets_data:
-            deleted = tablets_data.pop(device_id)
-            guardar_datos()
-            print(f"🗑️ Tablet eliminada: {device_id[:12]}...")
-            return jsonify({
-                'status': 'ok', 
-                'message': 'Tablet eliminada',
-                'deleted_data': deleted
-            }), 200
-        
-        return jsonify({'status': 'error', 'message': 'Tablet no encontrada'}), 404
-        
-    except Exception as e:
-        print(f"❌ Error en DELETE /api/tablets/{device_id}: {e}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-
-@app.route('/api/reset', methods=['POST'])
-def reset_data():
-    """
-    Endpoint protegido para resetear todos los datos.
-    """
-    try:
-        if not verificar_api_key():
-            return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
-        
-        confirm = request.json.get('confirm', '') if request.json else ''
-        if confirm != 'RESET_CONFIRM':
-            return jsonify({'status': 'error', 'message': 'Confirmación requerida'}), 400
-        
-        global tablets_data, km_reports
-        count_tablets = len(tablets_data)
-        count_km = len(km_reports)
-        tablets_data = {}
-        km_reports = {}
-        guardar_datos()
-        
-        print(f"🔄 Datos reseteados: {count_tablets} tablets, {count_km} reportes de km eliminados")
-        return jsonify({'status': 'ok', 'message': f'{count_tablets} tablets y {count_km} reportes eliminados'}), 200
-        
-    except Exception as e:
-        print(f"❌ Error en POST /api/reset: {e}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
 
 @app.route('/api/km-report', methods=['POST'])
-def report_km():
-    """
-    Endpoint para que conductores reporten km recorridos diariamente.
-    Requiere header: X-API-Key: <tu_clave_secreta>
-    """
+def km_report():
+    """Recibe reporte de kilómetros de conductores"""
     try:
-        if not verificar_api_key():
-            return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+        api_key = request.headers.get('X-API-Key')
+        if api_key != 'adride_iquique_2024_secreto':
+            return jsonify({'status': 'error', 'message': 'API Key inválida'}), 401
         
         data = request.get_json()
-        if not data:
-            return jsonify({'status': 'error', 'message': 'JSON required'}), 400
-        
         device_id = data.get('device_id')
-        km_recorridos = data.get('km_recorridos', 0)
         fecha = data.get('fecha', datetime.datetime.now().strftime('%Y-%m-%d'))
+        km = data.get('km', 0)
         
         if not device_id:
-            return jsonify({'status': 'error', 'message': 'device_id required'}), 400
-        
-        if km_recorridos < 0 or km_recorridos > 500:
-            return jsonify({'status': 'error', 'message': 'Km inválidos (0-500)'}), 400
+            return jsonify({'status': 'error', 'message': 'device_id requerido'}), 400
         
         if device_id not in km_reports:
             km_reports[device_id] = {}
         
-        km_reports[device_id][fecha] = km_recorridos
+        km_reports[device_id][fecha] = km
         guardar_datos()
         
-        print(f"📍 Km reportados: {device_id[:12]}... | {km_recorridos} km | {fecha}")
-        
         return jsonify({
-            'status': 'ok',
-            'message': f'{km_recorridos} km registrados para {fecha}',
-            'device_id': device_id[:12] + '...',
-            'fecha': fecha
+            "status": "ok",
+            "message": "Km reportado",
+            "device_id": device_id[:12] + "...",
+            "fecha": fecha,
+            "km": km
         }), 200
         
     except Exception as e:
-        print(f"❌ Error reportando km: {e}")
+        print(f"❌ Error en km-report: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-
-# ========================================
-# RUTAS DE PAGOS
-# ========================================
 @app.route('/api/payments/calculate', methods=['GET'])
 def calculate_payments():
     """
-    Calcula pagos basados en km + share proporcional de cada campaña publicitaria.
-    No requiere API Key para lectura.
+    Calcula pagos basados en: km + horas activas + share del fondo mensual (40%)
+    Fórmula: (km×$15) + (horas×$500) + (share×$3,333) + bono_pico
     """
     try:
         now = datetime.datetime.now()
         fecha_hoy = now.strftime('%Y-%m-%d')
         
-        # Configuración base
-        config = {
-            "tarifa_km": 15,
-            "bono_horas_pico_porcentaje": 0.20,
-            "km_minimos_bono": 50
-        }
-        
-        # ✅ VALORES DE CAMPAÑA
-        valores_campana = {
-            "Restaurante El Marino": 50000,
-            "Gimnasio FitZone": 50000,
-            "Farmacia ZOFRI": 50000,
-            "Tour Iquique": 50000,
-            "contrata": 50000
-        }
-        
-        # ✅ PASO 1: Calcular impresiones TOTALES por anuncio (suma de todas las tablets)
-        impresiones_totales_por_anuncio = {}
-        for device_id, data in tablets_data.items():
-            # ✅ INTENTAR leer ad_impressions (formato nuevo)
-            ad_impressions_json = data.get('ad_impressions', None)
-            
-            # ✅ FALLBACK: Si no existe, intentar leer ad_stats (formato viejo)
-            if not ad_impressions_json and 'ad_stats' in data: 
-                try:
-                    ad_stats = json.loads(data['ad_stats']) if isinstance(data['ad_stats'], str) else data['ad_stats']
-                    ad_impressions = {nombre: stats.get('impressions', 0) for nombre, stats in ad_stats.items()}
-                    ad_impressions_json = json.dumps(ad_impressions)
-                except:
-                    ad_impressions_json = '{}'
-            
-            # Si aún no hay datos, usar vacío
-            if not ad_impressions_json:
-                ad_impressions_json = '{}'
-            
-            try:
-                ad_impressions = json.loads(ad_impressions_json) if isinstance(ad_impressions_json, str) else ad_impressions_json
-                for anuncio, impresiones in ad_impressions.items():
-                    impresiones_totales_por_anuncio[anuncio] = impresiones_totales_por_anuncio.get(anuncio, 0) + int(impresiones or 0)
-            except:
-                pass
-        
         payments = []
         
+        # Calcular impresiones totales globales (para share)
+        impresiones_totales = sum(
+            int(t.get('total_impressions', 0) or 0) 
+            for t in tablets_data.values()
+        )
+        
         for device_id, data in tablets_data.items():
-            # Datos básicos
+            # ✅ DATOS BÁSICOS DEL CONDUCTOR
             km_recorridos = int(km_reports.get(device_id, {}).get(fecha_hoy, 0) or 0)
+            horas_activas = float(data.get('uptime_hours', 0) or 0)
+            impresiones_conductor = int(data.get('total_impressions', 0) or 0)
             
-            # ✅ PASO 2: Calcular pago por share de cada anuncio (con fallback)
-            ad_impressions_json = data.get('ad_impressions', None)
-            
-            # ✅ FALLBACK: Leer ad_stats si no hay ad_impressions
-            if not ad_impressions_json and 'ad_stats' in data: 
-                try:
-                    ad_stats = json.loads(data['ad_stats']) if isinstance(data['ad_stats'], str) else data['ad_stats']
-                    ad_impressions = {nombre: stats.get('impressions', 0) for nombre, stats in ad_stats.items()}
-                    ad_impressions_json = json.dumps(ad_impressions)
-                except:
-                    ad_impressions_json = '{}'
-            
-            if not ad_impressions_json:
-                ad_impressions_json = '{}'
-            
-            ad_impressions = json.loads(ad_impressions_json) if isinstance(ad_impressions_json, str) else ad_impressions_json
-            
-            pago_anuncios = 0
-            detalle_anuncios = {}
-            
-            for anuncio, impresiones in ad_impressions.items():
-                impresiones = int(impresiones or 0)
-                total_anuncio = impresiones_totales_por_anuncio.get(anuncio, 0)
-                valor_campana = valores_campana.get(anuncio, 0)
-                
-                if total_anuncio > 0 and valor_campana > 0:
-                    share = impresiones / total_anuncio
-                    pago = share * valor_campana
-                    pago_anuncios += pago
-                    detalle_anuncios[anuncio] = {
-                        "impresiones": impresiones,
-                        "total_global": total_anuncio,
-                        "share": round(share * 100, 1),
-                        "pago": round(pago)
-                    }
-            
-            # Pago por km
+            # ✅ 1. PAGO POR KM
             pago_km = km_recorridos * config['tarifa_km']
             
-            # Bono horas pico
-            subtotal = pago_km + pago_anuncios
+            # ✅ 2. BONO POR HORA ACTIVA
+            pago_horas = horas_activas * config['tarifa_hora_activa']
+            
+            # ✅ 3. SHARE DEL FONDO PARA CONDUCTORES
+            if impresiones_totales > 0:
+                share = impresiones_conductor / impresiones_totales
+            else:
+                share = 0
+            
+            pago_fondo = share * fondo_conductores_diario
+            
+            # ✅ 4. SUBTOTAL
+            subtotal = pago_km + pago_horas + pago_fondo
+            
+            # ✅ 5. BONO HORAS PICO (si km >= 50)
             bono_pico = subtotal * config['bono_horas_pico_porcentaje'] if km_recorridos >= config['km_minimos_bono'] else 0
             
-            # Total
+            # ✅ 6. TOTAL FINAL
             pago_total = subtotal + bono_pico
             
             payments.append({
                 "device_id": device_id[:12] + "...",
                 "device_id_completo": device_id,
                 "km_recorridos": km_recorridos,
+                "horas_activas": round(horas_activas, 1),
                 "pago_km": round(pago_km),
-                "pago_anuncios": round(pago_anuncios),
-                "detalle_anuncios": detalle_anuncios,
+                "pago_horas": round(pago_horas),
+                "pago_fondo": round(pago_fondo),
+                "share_impresiones": round(share * 100, 1),
                 "bono_pico": round(bono_pico),
                 "pago_total": round(pago_total),
-                "fecha": fecha_hoy
+                "fecha": fecha_hoy,
+                "resumen_negocio": {
+                    "presupuesto_total_mensual": config["presupuesto_total_mensual"],
+                    "fondo_conductores_diario": round(fondo_conductores_diario),
+                    "porcentaje_conductores": f"{int(config['porcentaje_para_conductores']*100)}%"
+                }
             })
         
-        # Ordenar por pago total
+        # Ordenar por pago total descendente
         payments.sort(key=lambda x: x['pago_total'], reverse=True)
         
         return jsonify({
@@ -444,108 +283,46 @@ def calculate_payments():
         import traceback
         traceback.print_exc()
         return jsonify({'status': 'error', 'message': str(e)}), 500
-        
-
 
 @app.route('/api/payments/export/csv', methods=['GET'])
-def export_payments_csv():
-    """
-    Exporta pagos en formato CSV para transferencia bancaria.
-    """
+def export_csv():
+    """Exporta pagos en formato CSV para transferencias bancarias"""
     try:
-        response = calculate_payments()
-        data = response[0].json if hasattr(response[0], 'json') else response
+        now = datetime.datetime.now()
+        fecha_hoy = now.strftime('%Y-%m-%d')
         
-        if isinstance(data, tuple):
-            data = data[0].json if hasattr(data[0], 'json') else data[0]
+        csv_content = "device_id,km_recorridos,horas_activas,pago_km,pago_horas,pago_fondo,bono_pico,pago_total,fecha\n"
         
-        if data.get('status') != 'ok':
-            return jsonify({'error': 'No se pudieron calcular pagos'}), 500
+        for device_id, data in tablets_data.items():
+            km_recorridos = int(km_reports.get(device_id, {}).get(fecha_hoy, 0) or 0)
+            horas_activas = float(data.get('uptime_hours', 0) or 0)
+            impresiones_conductor = int(data.get('total_impressions', 0) or 0)
+            
+            pago_km = km_recorridos * config['tarifa_km']
+            pago_horas = horas_activas * config['tarifa_hora_activa']
+            
+            impresiones_totales = sum(int(t.get('total_impressions', 0) or 0) for t in tablets_data.values())
+            share = impresiones_conductor / impresiones_totales if impresiones_totales > 0 else 0
+            pago_fondo = share * fondo_conductores_diario
+            
+            subtotal = pago_km + pago_horas + pago_fondo
+            bono_pico = subtotal * config['bono_horas_pico_porcentaje'] if km_recorridos >= config['km_minimos_bono'] else 0
+            pago_total = subtotal + bono_pico
+            
+            csv_content += f"{device_id},{km_recorridos},{horas_activas},{pago_km},{pago_horas},{pago_fondo},{bono_pico},{pago_total},{fecha_hoy}\n"
         
-        output = io.StringIO()
-        writer = csv.writer(output)
-        
-        writer.writerow([
-            'Fecha', 'Device ID', 'Km Recorridos', 'Impresiones', 'Imp/Km',
-            'Pago Km', 'Pago Impresiones', 'Bono Pico', 'Penalización', 'PAGO TOTAL', 'Alerta Fraude'
-        ])
-        
-        for p in data.get('detalles', []):
-            writer.writerow([
-                data.get('fecha'),
-                p.get('device_id_completo'),
-                p.get('km_recorridos'),
-                p.get('impresiones'),
-                p.get('impresiones_por_km'),
-                p.get('pago_km'),
-                p.get('pago_impresiones'),
-                p.get('bono_pico'),
-                p.get('penalizacion_fraude'),
-                p.get('pago_total'),
-                'SI' if p.get('alerta_fraude') else 'NO'
-            ])
-        
-        output.seek(0)
-        
-        return output.getvalue(), 200, {
-            'Content-Type': 'text/csv',
-            'Content-Disposition': f'attachment; filename=pagos_adride_{data.get("fecha")}.csv'
-        }
-        
+        return app.response_class(
+            response=csv_content,
+            status=200,
+            mimetype='text/csv',
+            headers={'Content-Disposition': f'attachment;filename=pagos_adride_{fecha_hoy}.csv'}
+        )
     except Exception as e:
-        print(f"❌ Error exportando CSV: {e}")
         return jsonify({'error': str(e)}), 500
 
+# Cargar datos al iniciar
+cargar_datos()
 
-# ========================================
-# HEALTH CHECK
-# ========================================
-@app.route('/health', methods=['GET'])
-def health_check():
-    """Endpoint simple para verificar que el servidor está respondiendo"""
-    return jsonify({
-        'status': 'healthy',
-        'service': 'adride-server',
-        'timestamp': datetime.datetime.now().isoformat(),
-        'tablets_count': len(tablets_data)
-    }), 200
-
-
-# ========================================
-# MANEJO DE ERRORES GLOBAL
-# ========================================
-@app.errorhandler(404)
-def not_found(error):
-    """Maneja rutas no encontradas de forma amigable"""
-    return jsonify({'error': 'Endpoint no encontrado', 'path': request.path}), 404
-
-
-@app.errorhandler(500)
-def internal_error(error):
-    """Maneja errores internos del servidor"""
-    print(f"❌ Error interno del servidor: {error}")
-    return jsonify({'error': 'Error interno del servidor'}), 500
-
-
-# ========================================
-# ENTRY POINT PARA DESARROLLO LOCAL
-# ========================================
 if __name__ == '__main__':
-    # 👇 DEFINIR debug_mode PRIMERO (antes de cualquier print que lo use)
-    debug_mode = os.environ.get('FLASK_ENV', 'production') == 'development'
-    
-    print("=" * 60)
-    print("🚗 ADRIDE SERVER - Dashboard Backend")
-    print("=" * 60)
-    print(f"🔑 API Key configurada: {'✅ Sí' if API_KEY != 'adride_iquique_2024_secreto' else '⚠️ Default'}")
-    print(f"📊 Tablets cargadas: {len(tablets_data)}")
-    print(f"📍 Reportes de km cargados: {len(km_reports)}")
-    print(f"🔧 Modo debug: {'✅ Sí' if debug_mode else '❌ No'}")
-    print("🌐 Servidor corriendo en: http://0.0.0.0:5000")
-    print("🔗 Dashboard: http://localhost:5000")
-    print("🔗 API Tablets: http://localhost:5000/api/tablets")
-    print("🔗 Health Check: http://localhost:5000/health")
-    print("=" * 60)
-    
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=debug_mode)
+    app.run(host='0.0.0.0', port=5000, debug=False)
     
