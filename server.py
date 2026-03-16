@@ -320,7 +320,7 @@ def calculate_payments():
             "km_minimos_bono": 50
         }
         
-        # ✅ VALORES DE CAMPAÑA (puedes cargarlos desde ads_config.json o tenerlos aquí)
+        # ✅ VALORES DE CAMPAÑA
         valores_campana = {
             "Restaurante El Marino": 50000,
             "Gimnasio FitZone": 50000,
@@ -332,7 +332,22 @@ def calculate_payments():
         # ✅ PASO 1: Calcular impresiones TOTALES por anuncio (suma de todas las tablets)
         impresiones_totales_por_anuncio = {}
         for device_id, data in tablets_data.items():
-            ad_impressions_json = data.get('ad_impressions', '{}')
+            # ✅ INTENTAR leer ad_impressions (formato nuevo)
+            ad_impressions_json = data.get('ad_impressions', None)
+            
+            # ✅ FALLBACK: Si no existe, intentar leer ad_stats (formato viejo)
+            if not ad_impressions_json and 'ad_stats' in 
+                try:
+                    ad_stats = json.loads(data['ad_stats']) if isinstance(data['ad_stats'], str) else data['ad_stats']
+                    ad_impressions = {nombre: stats.get('impressions', 0) for nombre, stats in ad_stats.items()}
+                    ad_impressions_json = json.dumps(ad_impressions)
+                except:
+                    ad_impressions_json = '{}'
+            
+            # Si aún no hay datos, usar vacío
+            if not ad_impressions_json:
+                ad_impressions_json = '{}'
+            
             try:
                 ad_impressions = json.loads(ad_impressions_json) if isinstance(ad_impressions_json, str) else ad_impressions_json
                 for anuncio, impresiones in ad_impressions.items():
@@ -346,8 +361,21 @@ def calculate_payments():
             # Datos básicos
             km_recorridos = int(km_reports.get(device_id, {}).get(fecha_hoy, 0) or 0)
             
-            # ✅ PASO 2: Calcular pago por share de cada anuncio
-            ad_impressions_json = data.get('ad_impressions', '{}')
+            # ✅ PASO 2: Calcular pago por share de cada anuncio (con fallback)
+            ad_impressions_json = data.get('ad_impressions', None)
+            
+            # ✅ FALLBACK: Leer ad_stats si no hay ad_impressions
+            if not ad_impressions_json and 'ad_stats' in 
+                try:
+                    ad_stats = json.loads(data['ad_stats']) if isinstance(data['ad_stats'], str) else data['ad_stats']
+                    ad_impressions = {nombre: stats.get('impressions', 0) for nombre, stats in ad_stats.items()}
+                    ad_impressions_json = json.dumps(ad_impressions)
+                except:
+                    ad_impressions_json = '{}'
+            
+            if not ad_impressions_json:
+                ad_impressions_json = '{}'
+            
             ad_impressions = json.loads(ad_impressions_json) if isinstance(ad_impressions_json, str) else ad_impressions_json
             
             pago_anuncios = 0
