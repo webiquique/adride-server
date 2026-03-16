@@ -477,15 +477,16 @@
       return;
     }
     
-    // ✅ Renderizar tabla de pagos
     let html = `
       <table class="payments-table">
         <thead>
           <tr>
             <th>Device ID</th>
             <th>Km</th>
+            <th>Horas</th>
             <th>Pago Km</th>
-            <th>Pago Anuncios</th>
+            <th>Pago Horas</th>
+            <th>Pago Fondo</th>
             <th>Bono</th>
             <th>TOTAL</th>
           </tr>
@@ -494,49 +495,44 @@
     `;
     
     data.detalles.forEach(p => {
-      // ✅ DEFENSIVO: Usar || 0 para evitar undefined
       const pagoKm = p.pago_km ?? 0;
-      const pagoAnuncios = p.pago_anuncios ?? 0;  // ← NUEVO: era pago_impresiones
+      const pagoHoras = p.pago_horas ?? 0;
+      const pagoFondo = p.pago_fondo ?? 0;
       const bonoPico = p.bono_pico ?? 0;
       const pagoTotal = p.pago_total ?? 0;
+      const share = p.share_impresiones ?? 0;
       
       html += `
         <tr>
           <td>${p.device_id || 'N/A'}</td>
-          <td>${p.km_recorridos ?? 0}</td>
+          <td>${p.km_recorridos ?? 0} km</td>
+          <td>${p.horas_activas ?? 0} h</td>
           <td>$${(pagoKm).toLocaleString('es-CL')}</td>
-          <td>$${(pagoAnuncios).toLocaleString('es-CL')}</td>
+          <td>$${(pagoHoras).toLocaleString('es-CL')}</td>
+          <td>$${(pagoFondo).toLocaleString('es-CL')} <small>(${share}%)</small></td>
           <td>$${(bonoPico).toLocaleString('es-CL')}</td>
           <td><strong>$${(pagoTotal).toLocaleString('es-CL')}</strong></td>
         </tr>
       `;
-      
-      // ✅ OPCIONAL: Mostrar detalle por anuncio (si existe)
-      if (p.detalle_anuncios && Object.keys(p.detalle_anuncios).length > 0) {
-        html += `
-          <tr>
-            <td colspan="6" style="background: #f8f9fa; font-size: 0.9em;">
-              <details>
-                <summary>📊 Detalle por anuncio</summary>
-                <ul style="margin: 10px 0; padding-left: 20px;">
-        `;
-        Object.entries(p.detalle_anuncios).forEach(([anuncio, det]) => {
-          html += `<li>${anuncio}: ${det.impresiones} imp × ${det.share}% = $${(det.pago ?? 0).toLocaleString('es-CL')}</li>`;
-        });
-        html += `
-                </ul>
-              </details>
-            </td>
-          </tr>
-        `;
-      }
     });
     
     html += `</tbody></table>`;
     
-    // ✅ Mostrar total general
     const totalGeneral = data.total_a_pagar ?? 0;
     html += `<p style="margin-top: 20px; font-size: 1.2em;"><strong>Total a pagar: $${totalGeneral.toLocaleString('es-CL')} CLP</strong></p>`;
+    
+    // ✅ Mostrar resumen de negocio
+    if (data.detalles[0]?.resumen_negocio) {
+      const rn = data.detalles[0].resumen_negocio;
+      html += `
+        <div style="margin-top: 20px; padding: 15px; background: #e7f3ff; border-radius: 8px;">
+          <h4 style="margin: 0 0 10px 0;">📊 Resumen de Negocio</h4>
+          <p style="margin: 5px 0;">Presupuesto Total Mensual: <strong>$${rn.presupuesto_total_mensual.toLocaleString('es-CL')}</strong></p>
+          <p style="margin: 5px 0;">Fondo Conductores Diario: <strong>$${rn.fondo_conductores_diario.toLocaleString('es-CL')}</strong></p>
+          <p style="margin: 5px 0;">Porcentaje para Conductores: <strong>${rn.porcentaje_conductores}</strong></p>
+        </div>
+      `;
+    }
     
     document.getElementById('payments-summary').innerHTML = html;
     
