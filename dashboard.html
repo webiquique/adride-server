@@ -459,78 +459,94 @@
         // CARGAR PAGOS
         // ========================================
         async function loadPayments() {
-            try {
-                const res = await fetch(`${API_BASE}/api/payments/calculate`);
-                const data = await res.json();
-                
-                const paymentsSummary = document.getElementById('payments-summary');
-                
-                if (data.status !== 'ok') {
-                    paymentsSummary.innerHTML = '<p style="color: #dc3545;">Error cargando pagos</p>';
-                    return;
-                }
-                
-                document.getElementById('stat-conductores').textContent = data.conductores || 0;
-                document.getElementById('stat-total-pagar').textContent = 
-                    `$${(data.total_a_pagar || 0).toLocaleString('es-CL')} CLP`;
-                
-                if (data.conductores === 0) {
-                    paymentsSummary.innerHTML = '<p style="color: #a0a0a0; text-align: center;">No hay pagos para calcular hoy</p>';
-                    return;
-                }
-                
-                let html = `
-                    <p><strong>Fecha:</strong> ${data.fecha}</p>
-                    <p><strong>Total a pagar:</strong> <span style="color: #28a745; font-size: 1.3em;">
-                        $${(data.total_a_pagar || 0).toLocaleString('es-CL')} CLP
-                    </span></p>
-                    
-                    <table>
-                        <tr>
-                            <th>Device ID</th>
-                            <th>Km</th>
-                            <th>Impresiones</th>
-                            <th>Imp/Km</th>
-                            <th>Pago Km</th>
-                            <th>Pago Imp</th>
-                            <th>Bono</th>
-                            <th>Penalización</th>
-                            <th>TOTAL</th>
-                            <th>Alerta</th>
-                        </tr>
-                `;
-                
-                data.detalles.forEach(p => {
-                    const alertaClass = p.alerta_fraude ? 'class="alerta-fraude"' : '';
-                    const alertaTexto = p.alerta_fraude ? '⚠️ Revisar' : '✅';
-                    
-                    html += `
-                        <tr ${alertaClass}>
-                            <td>${p.device_id}</td>
-                            <td style="text-align: center;">${p.km_recorridos}</td>
-                            <td style="text-align: center;">${p.impresiones.toLocaleString()}</td>
-                            <td style="text-align: center;">${p.impresiones_por_km}</td>
-                            <td style="text-align: right;">$${(p.pago_km || 0).toLocaleString('es-CL')}</td>
-                            <td style="text-align: right;">$${(p.pago_impresiones || 0).toLocaleString('es-CL')}</td>
-                            <td style="text-align: right;">$${(p.bono_pico || 0).toLocaleString('es-CL')}</td>
-                            <td style="text-align: right;">$${(p.penalizacion_fraude || 0).toLocaleString('es-CL')}</td>
-                            <td style="text-align: right; font-weight: bold; color: #28a745;">
-                                $${(p.pago_total || 0).toLocaleString('es-CL')}
-                            </td>
-                            <td style="text-align: center;">${alertaTexto}</td>
-                        </tr>
-                    `;
-                });
-                
-                html += `</table>`;
-                paymentsSummary.innerHTML = html;
-                
-            } catch (e) {
-                console.error('Error cargando pagos:', e);
-                document.getElementById('payments-summary').innerHTML = 
-                    '<p style="color: #dc3545;">Error de conexión al cargar pagos</p>';
-            }
-        }
+  try {
+    console.log('🔄 Cargando pagos desde:', `${API_BASE}/api/payments/calculate`);
+    
+    const res = await fetch(`${API_BASE}/api/payments/calculate`);
+    
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
+    
+    const data = await res.json();
+    console.log('✅ Pagos recibidos:', data);
+    
+    if (!data.detalles || data.detalles.length === 0) {
+      document.getElementById('payments-summary').innerHTML = 
+        '<p style="color: #6c757d;">📭 Sin pagos registrados hoy</p>';
+      return;
+    }
+    
+    // ✅ Renderizar tabla de pagos
+    let html = `
+      <table class="payments-table">
+        <thead>
+          <tr>
+            <th>Device ID</th>
+            <th>Km</th>
+            <th>Pago Km</th>
+            <th>Pago Anuncios</th>
+            <th>Bono</th>
+            <th>TOTAL</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+    
+    data.detalles.forEach(p => {
+      // ✅ DEFENSIVO: Usar || 0 para evitar undefined
+      const pagoKm = p.pago_km ?? 0;
+      const pagoAnuncios = p.pago_anuncios ?? 0;  // ← NUEVO: era pago_impresiones
+      const bonoPico = p.bono_pico ?? 0;
+      const pagoTotal = p.pago_total ?? 0;
+      
+      html += `
+        <tr>
+          <td>${p.device_id || 'N/A'}</td>
+          <td>${p.km_recorridos ?? 0}</td>
+          <td>$${(pagoKm).toLocaleString('es-CL')}</td>
+          <td>$${(pagoAnuncios).toLocaleString('es-CL')}</td>
+          <td>$${(bonoPico).toLocaleString('es-CL')}</td>
+          <td><strong>$${(pagoTotal).toLocaleString('es-CL')}</strong></td>
+        </tr>
+      `;
+      
+      // ✅ OPCIONAL: Mostrar detalle por anuncio (si existe)
+      if (p.detalle_anuncios && Object.keys(p.detalle_anuncios).length > 0) {
+        html += `
+          <tr>
+            <td colspan="6" style="background: #f8f9fa; font-size: 0.9em;">
+              <details>
+                <summary>📊 Detalle por anuncio</summary>
+                <ul style="margin: 10px 0; padding-left: 20px;">
+        `;
+        Object.entries(p.detalle_anuncios).forEach(([anuncio, det]) => {
+          html += `<li>${anuncio}: ${det.impresiones} imp × ${det.share}% = $${(det.pago ?? 0).toLocaleString('es-CL')}</li>`;
+        });
+        html += `
+                </ul>
+              </details>
+            </td>
+          </tr>
+        `;
+      }
+    });
+    
+    html += `</tbody></table>`;
+    
+    // ✅ Mostrar total general
+    const totalGeneral = data.total_a_pagar ?? 0;
+    html += `<p style="margin-top: 20px; font-size: 1.2em;"><strong>Total a pagar: $${totalGeneral.toLocaleString('es-CL')} CLP</strong></p>`;
+    
+    document.getElementById('payments-summary').innerHTML = html;
+    
+  } catch (e) {
+    console.error('❌ Error cargando pagos:', e);
+    document.getElementById('payments-summary').innerHTML = 
+      `<p style="color: #dc3545;">⚠️ Error: ${e.message}</p>
+       <p style="color: #6c757d; font-size: 0.9em;">💡 Revisa consola (F12) para detalles</p>`;
+  }
+}
 
         // ========================================
         // FORMULARIO DE REPORTE DE KM
