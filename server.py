@@ -134,9 +134,16 @@ def get_tablets():
 def get_stats():
     """Endpoint para obtener estadísticas resumidas"""
     try:
-        total_impressions = sum(t.get('total_impressions', 0) for t in tablets_data.values())
-        online_count = sum(1 for t in tablets_data.values() 
-                          if (datetime.datetime.now().timestamp() - t.get('last_seen', 0)) < 300)
+        # ✅ CORREGIDO: Convertir a int antes de sumar
+        total_impressions = sum(
+            int(t.get('total_impressions', 0) or 0) 
+            for t in tablets_data.values()
+        )
+        
+        online_count = sum(
+            1 for t in tablets_data.values() 
+            if (datetime.datetime.now().timestamp() - float(t.get('last_seen', 0) or 0)) < 300
+        )
         
         return jsonify({
             'total_tablets': len(tablets_data),
@@ -146,7 +153,10 @@ def get_stats():
         }), 200
     except Exception as e:
         print(f"❌ Error en GET /api/stats: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
+        
 
 
 # ========================================
