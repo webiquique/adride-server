@@ -306,68 +306,92 @@ def report_km():
 @app.route('/api/payments/calculate', methods=['GET'])
 def calculate_payments():
     """
-    Calcula pagos basados en km + impresiones.
+    Calcula pagos basados en km + share proporcional de cada campaña publicitaria.
     No requiere API Key para lectura.
     """
     try:
         now = datetime.datetime.now()
         fecha_hoy = now.strftime('%Y-%m-%d')
         
+        # Configuración base
         config = {
             "tarifa_km": 15,
-            "tarifa_impresion": 0.03,
             "bono_horas_pico_porcentaje": 0.20,
-            "max_impresiones_por_km": 50,
             "km_minimos_bono": 50
         }
+        
+        # ✅ VALORES DE CAMPAÑA (puedes cargarlos desde ads_config.json o tenerlos aquí)
+        valores_campana = {
+            "Restaurante El Marino": 50000,
+            "Gimnasio FitZone": 50000,
+            "Farmacia ZOFRI": 50000,
+            "Tour Iquique": 50000,
+            "contrata": 50000
+        }
+        
+        # ✅ PASO 1: Calcular impresiones TOTALES por anuncio (suma de todas las tablets)
+        impresiones_totales_por_anuncio = {}
+        for device_id, data in tablets_data.items():
+            ad_impressions_json = data.get('ad_impressions', '{}')
+            try:
+                ad_impressions = json.loads(ad_impressions_json) if isinstance(ad_impressions_json, str) else ad_impressions_json
+                for anuncio, impresiones in ad_impressions.items():
+                    impresiones_totales_por_anuncio[anuncio] = impresiones_totales_por_anuncio.get(anuncio, 0) + int(impresiones or 0)
+            except:
+                pass
         
         payments = []
         
         for device_id, data in tablets_data.items():
-            # ✅ CONVERTIR A INT para evitar errores de tipo
+            # Datos básicos
             km_recorridos = int(km_reports.get(device_id, {}).get(fecha_hoy, 0) or 0)
-            impresiones = int(data.get('total_impressions', 0) or 0)
             
-            # Calcular impresiones por km (evitar división por cero)
-            if km_recorridos > 0:
-                impresiones_por_km = impresiones / km_recorridos
-            else:
-                impresiones_por_km = float(impresiones)  # Si no hay km, usar impresiones como referencia
+            # ✅ PASO 2: Calcular pago por share de cada anuncio
+            ad_impressions_json = data.get('ad_impressions', '{}')
+            ad_impressions = json.loads(ad_impressions_json) if isinstance(ad_impressions_json, str) else ad_impressions_json
             
-            # Detectar fraude (muchas impresiones, pocos km)
-            es_posible_fraude = impresiones_por_km > config['max_impresiones_por_km'] and impresiones > 100
+            pago_anuncios = 0
+            detalle_anuncios = {}
             
-            # Calcular pago
+            for anuncio, impresiones in ad_impressions.items():
+                impresiones = int(impresiones or 0)
+                total_anuncio = impresiones_totales_por_anuncio.get(anuncio, 0)
+                valor_campana = valores_campana.get(anuncio, 0)
+                
+                if total_anuncio > 0 and valor_campana > 0:
+                    share = impresiones / total_anuncio
+                    pago = share * valor_campana
+                    pago_anuncios += pago
+                    detalle_anuncios[anuncio] = {
+                        "impresiones": impresiones,
+                        "total_global": total_anuncio,
+                        "share": round(share * 100, 1),
+                        "pago": round(pago)
+                    }
+            
+            # Pago por km
             pago_km = km_recorridos * config['tarifa_km']
-            pago_impresiones = impresiones * config['tarifa_impresion']
             
-            # Bono horas pico (si km >= 50)
-            bono_pico = (pago_km + pago_impresiones) * config['bono_horas_pico_porcentaje'] if km_recorridos >= config['km_minimos_bono'] else 0
+            # Bono horas pico
+            subtotal = pago_km + pago_anuncios
+            bono_pico = subtotal * config['bono_horas_pico_porcentaje'] if km_recorridos >= config['km_minimos_bono'] else 0
             
-            pago_total = pago_km + pago_impresiones + bono_pico
-            
-            # Penalización por posible fraude
-            penalizacion = 0
-            if es_posible_fraude:
-                penalizacion = pago_total * 0.5
-                pago_total *= 0.5  # ← 50% de penalización
+            # Total
+            pago_total = subtotal + bono_pico
             
             payments.append({
                 "device_id": device_id[:12] + "...",
                 "device_id_completo": device_id,
                 "km_recorridos": km_recorridos,
-                "impresiones": impresiones,
-                "impresiones_por_km": round(impresiones_por_km, 1),
                 "pago_km": round(pago_km),
-                "pago_impresiones": round(pago_impresiones),
+                "pago_anuncios": round(pago_anuncios),
+                "detalle_anuncios": detalle_anuncios,
                 "bono_pico": round(bono_pico),
-                "penalizacion_fraude": round(penalizacion),
                 "pago_total": round(pago_total),
-                "alerta_fraude": es_posible_fraude,
                 "fecha": fecha_hoy
             })
         
-        # Ordenar por pago total descendente
+        # Ordenar por pago total
         payments.sort(key=lambda x: x['pago_total'], reverse=True)
         
         return jsonify({
@@ -381,7 +405,7 @@ def calculate_payments():
     except Exception as e:
         print(f"❌ Error calculando pagos: {e}")
         import traceback
-        traceback.print_exc()  # ← Para ver el error completo en logs
+        traceback.print_exc()
         return jsonify({'status': 'error', 'message': str(e)}), 500
         
 
