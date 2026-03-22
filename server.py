@@ -345,6 +345,60 @@ def validar_documento(conductor_id, tipo_documento):
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # ============================================
+# ✅ NUEVO: ADMIN - ELIMINAR DOCUMENTO
+# ============================================
+@app.route('/api/admin/documentos/<conductor_id>/<tipo_documento>/eliminar', methods=['POST'])
+def eliminar_documento(conductor_id, tipo_documento):
+    """Admin elimina documento permanentemente (foto + registro)"""
+    try:
+        api_key = request.headers.get('X-API-Key')
+        if api_key != 'adride_iquique_2024_secreto':
+            return jsonify({'status': 'error', 'message': 'API Key inválida'}), 401
+        
+        if conductor_id not in documentos_conductores:
+            return jsonify({'status': 'error', 'message': 'Conductor no encontrado'}), 404
+        
+        if tipo_documento not in documentos_conductores[conductor_id]:
+            return jsonify({'status': 'error', 'message': 'Documento no encontrado'}), 404
+        
+        # ✅ Obtener ruta de la foto para eliminarla
+        doc_data = documentos_conductores[conductor_id][tipo_documento]
+        foto_url = doc_data.get('foto_url', '')
+        
+        # ✅ Eliminar archivo físico si existe
+        if foto_url:
+            try:
+                # Extraer nombre del archivo de la URL
+                filename = foto_url.replace('/uploads/documentos/', '')
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                
+                if os.path.exists(filepath):
+                    os.remove(filepath)
+                    print(f"🗑️ Archivo eliminado: {filepath}")
+            except Exception as e:
+                print(f"⚠️ Error eliminando archivo: {e}")
+        
+        # ✅ Eliminar registro del JSON
+        del documentos_conductores[conductor_id][tipo_documento]
+        
+        # ✅ Si no hay más documentos para este conductor, limpiar entrada
+        if not documentos_conductores[conductor_id]:
+            del documentos_conductores[conductor_id]
+        
+        guardar_datos()
+        
+        print(f"🗑️ Documento eliminado: {conductor_id[:12]}... - {tipo_documento}")
+        
+        return jsonify({
+            'status': 'ok',
+            'message': 'Documento eliminado permanentemente'
+        }), 200
+    
+    except Exception as e:
+        print(f"❌ Error eliminando documento: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+# ============================================
 # ✅ NUEVO: ADMIN - LISTAR DOCUMENTOS PENDIENTES
 # ============================================
 @app.route('/api/admin/documentos/pendientes', methods=['GET'])
