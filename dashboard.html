@@ -695,6 +695,7 @@
                             <td>
                                 <button class="btn-success" onclick="validarDocumento('${doc.conductor_id}', '${doc.tipo_documento}', 'aprobado')">✅ Aprobar</button>
                                 <button class="btn-primary" style="background: #dc3545;" onclick="validarDocumento('${doc.conductor_id}', '${doc.tipo_documento}', 'rechazado')">❌ Rechazar</button>
+                                <button class="btn-primary" style="background: #6c757d;" onclick="eliminarDocumento('${doc.conductor_id}', '${doc.tipo_documento}')">🗑️ Eliminar</button>
                             </td>
                         </tr>
                     `;
@@ -743,6 +744,36 @@
                 alert(`❌ Error de conexión: ${e.message}`);
             }
         }
+
+        // ========================================
+// ✅ NUEVO: ELIMINAR DOCUMENTO
+// ========================================
+async function eliminarDocumento(conductor_id, tipo_documento) {
+    if (!confirm(`⚠️ ¿Estás SEGURO de eliminar este documento?\n\nEsta acción es PERMANENTE y no se puede deshacer.`)) return;
+    
+    try {
+        const res = await fetch(`${API_BASE}/api/admin/documentos/${conductor_id}/${tipo_documento}/eliminar`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-API-Key': API_KEY
+            }
+        });
+        
+        const data = await res.json();
+        
+        if (data.status === 'ok') {
+            alert(`🗑️ ${data.message}`);
+            loadDocumentosPendientes();  // Recargar lista
+            loadStats();  // Actualizar contador de pendientes
+        } else {
+            alert(`❌ Error: ${data.message}`);
+        }
+    } catch (e) {
+        console.error('❌ Error eliminando:', e);
+        alert(`❌ Error de conexión: ${e.message}`);
+    }
+}
 
         // ========================================
         // AUTO-REFRESH (FUERA DEL EVENT LISTENER)
