@@ -1,0 +1,35 @@
+# ✅ Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# ✅ IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ✅ Datos JSON (se generan en Render, no necesitas subirlos)
+# Descomenta si quieres que se suban:
+# tablets_data.json
+# km_reports.json
+# pagos_conductores.json
+# documentos_conductores.json
+
+# ✅ Uploads (NO subir archivos de usuarios al repo)
+uploads/
+*.jpg
+*.png
+*.jpeg
+
+# ✅ OS
+.DS_Store
+Thumbs.db
