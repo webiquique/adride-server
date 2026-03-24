@@ -361,6 +361,18 @@
     <p class="refresh-info">🔄 Auto-refresh: 30 segundos</p>
 </div>
 
+        <!-- ✅ NUEVO: Datos de Pago de Conductores -->
+<div class="card">
+    <h2>💳 Datos de Pago de Conductores</h2>
+    <p style="color: #a0a0a0; margin-bottom: 15px;">
+        Información bancaria configurada por los conductores para recibir transferencias.
+    </p>
+    
+    <div id="pagos-list" class="loading">Cargando datos de pago...</div>
+    
+    <p class="refresh-info">🔄 Auto-refresh: 60 segundos</p>
+</div>
+
         <!-- Footer -->
         <footer style="text-align: center; color: #a0a0a0; padding: 20px; margin-top: 30px;">
             <p>🚗 AdRide Iquique © 2026 | Servidor: 
@@ -394,7 +406,8 @@
             await loadTablets();
             await loadStats();
             await loadPayments();
-            await loadDocumentosPendientes();  // ✅ AGREGADO
+            await loadDocumentosPendientes(); 
+            await cargarDatosDePago(); // ✅ AGREGADO
         }
 
         // ========================================
@@ -555,6 +568,98 @@
                     <p style="color: #6c757d; font-size: 0.9em;">💡 Revisa consola (F12) para detalles</p>`;
             }
         }
+
+        // ========================================
+// ✅ NUEVO: CARGAR DATOS DE PAGO
+// ========================================
+async function cargarDatosDePago() {
+    try {
+        console.log('🔄 Cargando datos de pago...');
+        
+        // ✅ Primero obtener lista de tablets/conductores
+        const resTablets = await fetch(`${API_BASE}/api/tablets`, {
+            headers: { 'X-API-Key': API_KEY }
+        });
+        
+        if (!resTablets.ok) throw new Error(`HTTP error! status: ${resTablets.status}`);
+        
+        const tabletsData = await resTablets.json();
+        const listDiv = document.getElementById('pagos-list');
+        
+        if (!tabletsData.tablets || Object.keys(tabletsData.tablets).length === 0) {
+            listDiv.innerHTML = '<p style="color: #6c757d; text-align: center;">📭 No hay conductores registrados</p>';
+            return;
+        }
+        
+        // ✅ Para cada conductor, obtener sus datos de pago
+        let html = `
+            <table>
+                <thead>
+                    <tr>
+                        <th>Conductor (Device ID)</th>
+                        <th>RUT</th>
+                        <th>Nombre Titular</th>
+                        <th>Banco</th>
+                        <th>Tipo Cuenta</th>
+                        <th>Número Cuenta</th>
+                        <th>Email</th>
+                        <th>Actualizado</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        
+        const conductorIds = Object.keys(tabletsData.tablets);
+        
+        // ✅ Consultar datos de pago para cada conductor
+        for (const conductorId of conductorIds) {
+            try {
+                const resPago = await fetch(`${API_BASE}/api/pago/ver/${conductorId}`, {
+                    headers: { 'X-API-Key': API_KEY }
+                });
+                
+                if (resPago.ok) {
+                    const pagoData = await resPago.json();
+                    
+                    if (pagoData.pago && !pagoData.pago.rut) {
+                        // ✅ Sin datos de pago
+                        html += `
+                            <tr>
+                                <td>${conductorId.substring(0, 12)}...</td>
+                                <td colspan="7" style="text-align: center; color: #6c757d;">⚠️ Sin configuración de pago</td>
+                            </tr>
+                        `;
+                    } else if (pagoData.pago) {
+                        // ✅ Con datos de pago
+                        const p = pagoData.pago;
+                        html += `
+                            <tr>
+                                <td>${conductorId.substring(0, 12)}...</td>
+                                <td>${p.rut || '-'}</td>
+                                <td>${p.nombre_titular || '-'}</td>
+                                <td>${p.banco || '-'}</td>
+                                <td>${p.tipo_cuenta || '-'}</td>
+                                <td>${p.numero_cuenta || '-'}</td>
+                                <td>${p.email || '-'}</td>
+                                <td>${p.fecha_actualizacion || '-'}</td>
+                            </tr>
+                        `;
+                    }
+                }
+            } catch (e) {
+                console.error(`Error cargando pago para ${conductorId}:`, e);
+            }
+        }
+        
+        html += `</tbody></table>`;
+        listDiv.innerHTML = html;
+        
+    } catch (e) {
+        console.error('❌ Error cargando datos de pago:', e);
+        document.getElementById('pagos-list').innerHTML = 
+            `<p style="color: #dc3545;">⚠️ Error: ${e.message}</p>`;
+    }
+}
 
         // ========================================
         // FORMULARIO DE REPORTE DE KM
@@ -781,7 +886,8 @@ async function eliminarDocumento(conductor_id, tipo_documento) {
         setInterval(loadTablets, 30000);
         setInterval(loadStats, 30000);
         setInterval(loadPayments, 60000);
-        setInterval(loadDocumentosPendientes, 30000);  // ✅ AGREGADO
+        setInterval(loadDocumentosPendientes, 30000); 
+        setInterval(cargarDatosDePago, 60000); // ✅ AGREGADO
 
         // ========================================
         // CARGA INICIAL
