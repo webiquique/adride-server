@@ -505,7 +505,7 @@
         console.log('🔄 Cargando pagos desde:', `${API_BASE}/api/payments/calculate`);
         
         const res = await fetch(`${API_BASE}/api/payments/calculate`, {
-            headers: { 'X-API-Key': API_KEY }  // ✅ Agregar API Key
+            headers: { 'X-API-Key': API_KEY }
         });
         
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
@@ -567,15 +567,15 @@
         
         html += `
             <div style="margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                <div style="padding: 15px; background: #e8f5e9; border-radius: 8px;">
+                <div style="padding: 15px; background: #e8f5e9; border-radius: 8px; border-left: 4px solid #4CAF50;">
                     <h4 style="margin: 0 0 10px 0; color: #2e7d32;">💰 Total a Pagar a Conductores</h4>
                     <p style="font-size: 1.5em; margin: 0; color: #2e7d32;"><strong>$${payoutTotal.toLocaleString('es-CL')} CLP</strong></p>
                     <p style="margin: 5px 0; color: #666;">${porcentajePayout} del revenue generado</p>
                 </div>
-                <div style="padding: 15px; background: #fff3e0; border-radius: 8px;">
+                <div style="padding: 15px; background: #fff3e0; border-radius: 8px; border-left: 4px solid #FF9800;">
                     <h4 style="margin: 0 0 10px 0; color: #ef6c00;">🏢 Retención AdRide</h4>
                     <p style="font-size: 1.5em; margin: 0; color: #ef6c00;"><strong>$${adrideRetencion.toLocaleString('es-CL')} CLP</strong></p>
-                    <p style="margin: 5px 0; color: #666;">${((adrideRetencion/revenueTotal)*100).toFixed(1)}% del revenue generado</p>
+                    <p style="margin: 5px 0; color: #666;">${revenueTotal > 0 ? ((adrideRetencion/revenueTotal)*100).toFixed(1) : 0}% del revenue generado</p>
                 </div>
             </div>
         `;
@@ -589,6 +589,20 @@
                 <p style="margin: 5px 0;">Retención AdRide: <strong>$${adrideRetencion.toLocaleString('es-CL')}</strong></p>
                 <p style="margin: 5px 0;">Conductores Activos: <strong>${data.conductores_count}</strong></p>
                 <p style="margin: 5px 0; color: #666; font-size: 0.9em;">Período: ${data.periodo} | Calculado: ${data.fecha_calculo}</p>
+            </div>
+        `;
+        
+        // ✅ NUEVO: NOTA ACLARATORIA SOBRE PERÍODO ACUMULADO
+        html += `
+            <div style="margin-top: 20px; padding: 15px; background: #fff3e0; border-left: 4px solid #FF9800; border-radius: 4px;">
+                <p style="margin: 0; color: #ef6c00; font-size: 0.95em;">
+                    <strong>ℹ️ Nota Importante:</strong> Estos valores representan el <strong>acumulado histórico</strong> de cada conductor 
+                    desde su primer heartbeat. El pago real se calcula y transfiere al <strong>cierre del período mensual</strong>. 
+                    Para transferencias, usa el botón "Exportar CSV" al final del mes.
+                </p>
+                <p style="margin: 10px 0 0 0; color: #666; font-size: 0.85em;">
+                    📅 Próximo corte mensual: <strong>${new Date(new Date().getFullYear(), new Date().getMonth()+1, 1).toLocaleDateString('es-CL', {day: 'numeric', month: 'long', year: 'numeric'})}</strong>
+                </p>
             </div>
         `;
         
@@ -788,6 +802,7 @@ async function cargarDatosDePago() {
         window.URL.revokeObjectURL(url);
         
         console.log('✅ CSV exportado exitosamente');
+        alert('✅ CSV descargado. Los valores son ACUMULADOS. Filtra por fecha al momento de transferir.');
         
     } catch (e) {
         console.error('❌ Error exportando CSV:', e);
