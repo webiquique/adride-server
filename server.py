@@ -3,12 +3,12 @@ from flask_cors import CORS
 import json
 import os
 import datetime
-from werkzeug.utils import secure_filename  # ✅ NUEVO: Para subir archivos
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__, static_folder='.')
-CORS(app)  # ✅ Habilitar CORS para el dashboard y app Android
+CORS(app)
 
-# ✅ CONFIGURACIÓN PARA SUBIDA DE ARCHIVOS (NUEVO)
+# ✅ CONFIGURACIÓN PARA SUBIDA DE ARCHIVOS
 UPLOAD_FOLDER = 'uploads/documentos'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -18,26 +18,39 @@ ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png'}
 # Archivos de datos
 DATA_FILE = 'tablets_data.json'
 KM_FILE = 'km_reports.json'
-PAGOS_FILE = 'pagos_conductores.json'  # ✅ NUEVO: Datos bancarios
-DOCUMENTOS_FILE = 'documentos_conductores.json'  # ✅ NUEVO: Documentos subidos
+PAGOS_FILE = 'pagos_conductores.json'
+DOCUMENTOS_FILE = 'documentos_conductores.json'
 
 # Variables globales
 tablets_data = {}
 km_reports = {}
-pagos_conductores = {}  # ✅ NUEVO
-documentos_conductores = {}  # ✅ NUEVO
+pagos_conductores = {}
+documentos_conductores = {}
 
-# ✅ CONFIGURACIÓN DE NEGOCIO ADRIDE - PILOTO
+# ✅ CONFIGURACIÓN DE NEGOCIO ADRIDE - MODELO 25% + 5% BONO
 config = {
-    "tarifa_km": 15,
-    "tarifa_hora_activa": 500,
-    "presupuesto_total_mensual": 250000,
-    "porcentaje_para_conductores": 0.40,
-    "porcentaje_para_adride": 0.60,
-    "dias_mes": 30,
-    "km_minimos_bono": 50,
-    "bono_horas_pico_porcentaje": 0.20
+    "valor_por_impresion": 30,  # $30 CLP revenue por impresión
+    "porcentaje_base_conductor": 0.25,  # 25% base garantizado
+    "porcentaje_bono_maximo": 0.05,  # Hasta 5% bono por desempeño
+    "porcentaje_maximo_total": 0.30,  # Tope máximo: 30%
+    
+    # ✅ Métricas para bono (0% a 5%)
+    "km_minimos_bono": 50,  # +1.5% si ≥ 50 km/día
+    "impresiones_minimas_bono": 100,  # +1.5% si ≥ 100 impresiones/día
+    "bono_documentos_aprobados": 0.01,  # +1.0% si todos aprobados
+    "bono_conectividad_estable": 0.01,  # +1.0% si heartbeat estable
+    "bono_km_porcentaje": 0.015,  # 1.5%
+    "bono_impresiones_porcentaje": 0.015  # 1.5%
 }
+
+# ✅ CONFIGURACIÓN LEGACY (para compatibilidad con dashboard actual)
+config["tarifa_km"] = 15
+config["tarifa_hora_activa"] = 500
+config["presupuesto_total_mensual"] = 250000
+config["porcentaje_para_conductores"] = 0.40
+config["porcentaje_para_adride"] = 0.60
+config["dias_mes"] = 30
+config["bono_horas_pico_porcentaje"] = 0.20
 
 fondo_conductores_mensual = config["presupuesto_total_mensual"] * config["porcentaje_para_conductores"]
 fondo_conductores_diario = fondo_conductores_mensual / config["dias_mes"]
@@ -62,14 +75,12 @@ def cargar_datos():
                 km_reports = json.loads(content) if content else {}
             print(f"✅ Reportes de km cargados: {len(km_reports)}")
         
-        # ✅ NUEVO: Cargar pagos
         if os.path.exists(PAGOS_FILE):
             with open(PAGOS_FILE, 'r', encoding='utf-8') as f:
                 content = f.read().strip()
                 pagos_conductores = json.loads(content) if content else {}
             print(f"✅ Pagos cargados: {len(pagos_conductores)}")
         
-        # ✅ NUEVO: Cargar documentos
         if os.path.exists(DOCUMENTOS_FILE):
             with open(DOCUMENTOS_FILE, 'r', encoding='utf-8') as f:
                 content = f.read().strip()
@@ -89,14 +100,56 @@ def guardar_datos():
             json.dump(tablets_data, f, indent=2, ensure_ascii=False)
         with open(KM_FILE, 'w', encoding='utf-8') as f:
             json.dump(km_reports, f, indent=2, ensure_ascii=False)
-        # ✅ NUEVO: Guardar pagos
         with open(PAGOS_FILE, 'w', encoding='utf-8') as f:
             json.dump(pagos_conductores, f, indent=2, ensure_ascii=False)
-        # ✅ NUEVO: Guardar documentos
         with open(DOCUMENTOS_FILE, 'w', encoding='utf-8') as f:
             json.dump(documentos_conductores, f, indent=2, ensure_ascii=False)
     except Exception as e:
         print(f"❌ Error guardando datos: {e}")
+
+# ✅ HELPER: Calcular bono por desempeño (0.0 a 0.05)
+def calcular_bono_desempeno(conductor_id, data):
+    """
+    Calcula porcentaje de bono (0% a 5%) según métricas del chofer.
+    Retorna valor entre 0.0 y 0.05
+    
+    Métricas:
+    • +1.5% → Kilómetros ≥ 50 km/día
+    • +1.5% → Impresiones ≥ 100/día
+    • +1.0% → Documentos aprobados
+    • +1.0% → Conectividad estable
+    """
+    bono = 0.0
+    
+    # 📍 Métrica 1: Kilómetros mínimos (+1.5%)
+    km_recorridos = float(data.get('kilometros_recorridos', 0) or 0)
+    if km_recorridos >= config["km_minimos_bono"]:
+        bono += config["bono_km_porcentaje"]
+    
+    # 📺 Métrica 2: Volumen de impresiones (+1.5%)
+    total_impressions = int(data.get('total_impressions', 0) or 0)
+    if total_impressions >= config["impresiones_minimas_bono"]:
+        bono += config["bono_impresiones_porcentaje"]
+    
+    # 📄 Métrica 3: Documentos aprobados (+1.0%)
+    if conductor_id in documentos_conductores:
+        docs = documentos_conductores[conductor_id]
+        if docs and all(doc.get('estado') == 'aprobado' for doc in docs.values()):
+            bono += config["bono_documentos_aprobados"]
+    
+    # ❤️ Métrica 4: Conectividad estable (+1.0%)
+    last_seen = data.get('last_seen', 0)
+    if last_seen:
+        try:
+            ahora = datetime.datetime.now().timestamp()
+            diferencia_horas = (ahora - float(last_seen)) / 3600
+            if diferencia_horas < 2:  # Heartbeat en últimas 2 horas
+                bono += config["bono_conectividad_estable"]
+        except:
+            pass
+    
+    # ✅ Retornar bono máximo 5%
+    return min(bono, config["porcentaje_bono_maximo"])
 
 @app.route('/')
 def index():
@@ -141,6 +194,7 @@ def heartbeat():
             "is_charging": data.get('is_charging', 'false'),
             "ads_count": data.get('ads_count', '0'),
             "ad_impressions": data.get('ad_impressions', {}),
+            "kilometros_recorridos": data.get('kilometros_recorridos', '0'),  # ✅ Para cálculo de bono
             "received_at": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             "last_seen": datetime.datetime.now().timestamp()
         }
@@ -161,7 +215,7 @@ def heartbeat():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # ============================================
-# ✅ NUEVO: SUBIR DOCUMENTO (CRÍTICO)
+# ✅ SUBIR DOCUMENTO
 # ============================================
 @app.route('/api/documentos/subir', methods=['POST'])
 def subir_documento():
@@ -171,7 +225,6 @@ def subir_documento():
         if api_key != 'adride_iquique_2024_secreto':
             return jsonify({'status': 'error', 'message': 'API Key inválida'}), 401
         
-        # ✅ Verificar que viene la foto
         if 'foto' not in request.files:
             return jsonify({'status': 'error', 'message': 'No se recibió la foto'}), 400
         
@@ -185,19 +238,17 @@ def subir_documento():
         if foto.filename == '' or not allowed_file(foto.filename):
             return jsonify({'status': 'error', 'message': 'Archivo inválido'}), 400
         
-        # ✅ Guardar archivo con nombre seguro
         filename = f"{conductor_id}_{tipo_documento}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         foto.save(filepath)
         
-        # ✅ Guardar registro en JSON
         if conductor_id not in documentos_conductores:
             documentos_conductores[conductor_id] = {}
         
         documentos_conductores[conductor_id][tipo_documento] = {
             'tipo_documento': tipo_documento,
             'foto_url': f'/uploads/documentos/{filename}',
-            'estado': 'pendiente_validacion',  # pendiente, aprobado, rechazado
+            'estado': 'pendiente_validacion',
             'fecha_subida': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             'comentario_admin': '',
             'fecha_validacion': ''
@@ -219,7 +270,7 @@ def subir_documento():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # ============================================
-# ✅ NUEVO: VER ESTADO DE DOCUMENTOS
+# ✅ VER ESTADO DE DOCUMENTOS
 # ============================================
 @app.route('/api/documentos/estado/<conductor_id>', methods=['GET'])
 def ver_estado_documentos(conductor_id):
@@ -237,7 +288,7 @@ def ver_estado_documentos(conductor_id):
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # ============================================
-# ✅ NUEVO: GUARDAR DATOS DE PAGO (CRÍTICO)
+# ✅ GUARDAR DATOS DE PAGO
 # ============================================
 @app.route('/api/pago/guardar', methods=['POST'])
 def guardar_pago():
@@ -253,7 +304,6 @@ def guardar_pago():
         if not conductor_id:
             return jsonify({'status': 'error', 'message': 'conductor_id requerido'}), 400
         
-        # ✅ Guardar datos de pago
         pagos_conductores[conductor_id] = {
             'rut': data.get('rut', ''),
             'nombre_titular': data.get('nombre_titular', ''),
@@ -278,7 +328,7 @@ def guardar_pago():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # ============================================
-# ✅ NUEVO: VER DATOS DE PAGO
+# ✅ VER DATOS DE PAGO
 # ============================================
 @app.route('/api/pago/ver/<conductor_id>', methods=['GET'])
 def ver_pago(conductor_id):
@@ -303,7 +353,7 @@ def ver_pago(conductor_id):
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # ============================================
-# ✅ NUEVO: ADMIN - VALIDAR DOCUMENTO
+# ✅ ADMIN - VALIDAR DOCUMENTO
 # ============================================
 @app.route('/api/admin/documentos/<conductor_id>/<tipo_documento>/validar', methods=['POST'])
 def validar_documento(conductor_id, tipo_documento):
@@ -314,7 +364,7 @@ def validar_documento(conductor_id, tipo_documento):
             return jsonify({'status': 'error', 'message': 'API Key inválida'}), 401
         
         data = request.get_json()
-        accion = data.get('accion')  # 'aprobado' o 'rechazado'
+        accion = data.get('accion')
         comentario = data.get('comentario', '')
         
         if accion not in ['aprobado', 'rechazado']:
@@ -326,7 +376,6 @@ def validar_documento(conductor_id, tipo_documento):
         if tipo_documento not in documentos_conductores[conductor_id]:
             return jsonify({'status': 'error', 'message': 'Documento no encontrado'}), 404
         
-        # ✅ Actualizar estado
         documentos_conductores[conductor_id][tipo_documento]['estado'] = accion
         documentos_conductores[conductor_id][tipo_documento]['comentario_admin'] = comentario
         documentos_conductores[conductor_id][tipo_documento]['fecha_validacion'] = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -345,7 +394,7 @@ def validar_documento(conductor_id, tipo_documento):
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # ============================================
-# ✅ NUEVO: ADMIN - ELIMINAR DOCUMENTO
+# ✅ ADMIN - ELIMINAR DOCUMENTO
 # ============================================
 @app.route('/api/admin/documentos/<conductor_id>/<tipo_documento>/eliminar', methods=['POST'])
 def eliminar_documento(conductor_id, tipo_documento):
@@ -361,14 +410,11 @@ def eliminar_documento(conductor_id, tipo_documento):
         if tipo_documento not in documentos_conductores[conductor_id]:
             return jsonify({'status': 'error', 'message': 'Documento no encontrado'}), 404
         
-        # ✅ Obtener ruta de la foto para eliminarla
         doc_data = documentos_conductores[conductor_id][tipo_documento]
         foto_url = doc_data.get('foto_url', '')
         
-        # ✅ Eliminar archivo físico si existe
         if foto_url:
             try:
-                # Extraer nombre del archivo de la URL
                 filename = foto_url.replace('/uploads/documentos/', '')
                 filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 
@@ -378,10 +424,8 @@ def eliminar_documento(conductor_id, tipo_documento):
             except Exception as e:
                 print(f"⚠️ Error eliminando archivo: {e}")
         
-        # ✅ Eliminar registro del JSON
         del documentos_conductores[conductor_id][tipo_documento]
         
-        # ✅ Si no hay más documentos para este conductor, limpiar entrada
         if not documentos_conductores[conductor_id]:
             del documentos_conductores[conductor_id]
         
@@ -399,7 +443,7 @@ def eliminar_documento(conductor_id, tipo_documento):
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # ============================================
-# ✅ NUEVO: ADMIN - LISTAR DOCUMENTOS PENDIENTES
+# ✅ ADMIN - LISTAR DOCUMENTOS PENDIENTES
 # ============================================
 @app.route('/api/admin/documentos/pendientes', methods=['GET'])
 def listar_documentos_pendientes():
@@ -450,7 +494,6 @@ def get_stats():
             if (datetime.datetime.now().timestamp() - float(t.get('last_seen', 0) or 0)) < 300
         )
         
-        # ✅ NUEVO: Contar documentos pendientes
         documentos_pendientes = sum(
             1 for docs in documentos_conductores.values()
             for doc in docs.values()
@@ -461,7 +504,7 @@ def get_stats():
             "total_tablets": len(tablets_data),
             "online_tablets": online_count,
             "total_impressions": total_impressions,
-            "documentos_pendientes": documentos_pendientes,  # ✅ NUEVO
+            "documentos_pendientes": documentos_pendientes,
             "last_update": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         }), 200
     except Exception as e:
@@ -502,9 +545,139 @@ def km_report():
         print(f"❌ Error en km-report: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
+# ============================================
+# ✅ NUEVO MODELO: CALCULAR PAGO POR CHOFER (25% + 5% BONO)
+# ============================================
+@app.route('/api/payments/calculate/<conductor_id>', methods=['GET'])
+def calcular_pago_conductor(conductor_id):
+    """
+    Calcula pago mensual por conductor: 25% base + hasta 5% bono
+    SOBRE EL REVENUE GENERADO POR ESE CHOFER ESPECÍFICO
+    Máximo: 30% del revenue generado
+    """
+    try:
+        api_key = request.headers.get('X-API-Key')
+        if api_key != 'adride_iquique_2024_secreto':
+            return jsonify({'status': 'error', 'message': 'API Key inválida'}), 401
+        
+        # ✅ 1. Obtener datos del conductor
+        conductor_data = tablets_data.get(conductor_id, {})
+        
+        # ✅ 2. Calcular revenue generado POR ESTE CHOFER
+        total_impressions = int(conductor_data.get('total_impressions', 0) or 0)
+        valor_por_impresion = config["valor_por_impresion"]
+        revenue_generado = total_impressions * valor_por_impresion
+        
+        # ✅ 3. Calcular base: 25% del revenue generado
+        porcentaje_base = config["porcentaje_base_conductor"]
+        pago_base = revenue_generado * porcentaje_base
+        
+        # ✅ 4. Calcular bono por desempeño (0% a 5%)
+        bono_porcentaje = calcular_bono_desempeno(conductor_id, conductor_data)
+        pago_bono = revenue_generado * bono_porcentaje
+        
+        # ✅ 5. Total: base + bono (TOPE MÁXIMO: 30%)
+        pago_total = min(pago_base + pago_bono, revenue_generado * config["porcentaje_maximo_total"])
+        
+        # ✅ 6. Calcular porcentaje real aplicado
+        porcentaje_real = (pago_total / revenue_generado * 100) if revenue_generado > 0 else 0
+        
+        print(f"💰 Pago calculado: {conductor_id[:12]}... | Revenue: ${revenue_generado:,} | Base (25%): ${pago_base:,.0f} | Bono ({bono_porcentaje*100:.1f}%): ${pago_bono:,.0f} | TOTAL: ${pago_total:,.0f} ({porcentaje_real:.1f}%)")
+        
+        return jsonify({
+            'status': 'ok',
+            'conductor_id': conductor_id,
+            'conductor_id_corto': conductor_id[:12] + '...',
+            'revenue_generado': revenue_generado,
+            'total_impressions': total_impressions,
+            'valor_por_impresion': valor_por_impresion,
+            'pago_base': pago_base,
+            'porcentaje_base': f"{porcentaje_base*100:.0f}%",
+            'pago_bono': pago_bono,
+            'porcentaje_bono': f"{bono_porcentaje*100:.1f}%",
+            'pago_total': pago_total,
+            'porcentaje_real_aplicado': f"{porcentaje_real:.1f}%",
+            'tope_maximo': revenue_generado * config["porcentaje_maximo_total"],
+            'periodo': datetime.datetime.now().strftime("%Y-%m"),
+            'fecha_calculo': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ Error calculando pago: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+# ============================================
+# ✅ NUEVO MODELO: CALCULAR PAGOS TODOS LOS CHOFERES
+# ============================================
 @app.route('/api/payments/calculate', methods=['GET'])
-def calculate_payments():
-    """Calcula pagos basados en: km + horas activas + share del fondo mensual"""
+def calcular_pagos_todos():
+    """Calcula pagos para todos los conductores (25% + 5% bono)"""
+    try:
+        api_key = request.headers.get('X-API-Key')
+        if api_key != 'adride_iquique_2024_secreto':
+            return jsonify({'status': 'error', 'message': 'API Key inválida'}), 401
+        
+        payments = []
+        revenue_total_todos = 0
+        pago_total_todos = 0
+        
+        for conductor_id, data in tablets_data.items():
+            # ✅ Calcular revenue por conductor
+            total_impressions = int(data.get('total_impressions', 0) or 0)
+            valor_por_impresion = config["valor_por_impresion"]
+            revenue_generado = total_impressions * valor_por_impresion
+            
+            # ✅ Calcular base + bono
+            porcentaje_base = config["porcentaje_base_conductor"]
+            pago_base = revenue_generado * porcentaje_base
+            
+            bono_porcentaje = calcular_bono_desempeno(conductor_id, data)
+            pago_bono = revenue_generado * bono_porcentaje
+            
+            pago_total = min(pago_base + pago_bono, revenue_generado * config["porcentaje_maximo_total"])
+            
+            revenue_total_todos += revenue_generado
+            pago_total_todos += pago_total
+            
+            payments.append({
+                'conductor_id': conductor_id[:12] + '...',
+                'conductor_id_completo': conductor_id,
+                'revenue_generado': revenue_generado,
+                'total_impressions': total_impressions,
+                'pago_base': round(pago_base),
+                'pago_bono': round(pago_bono),
+                'porcentaje_bono': f"{bono_porcentaje*100:.1f}%",
+                'pago_total': round(pago_total),
+                'porcentaje_real': f"{(pago_total/revenue_generado)*100:.1f}%" if revenue_generado > 0 else "0%"
+            })
+        
+        # ✅ Ordenar por pago total (mayor a menor)
+        payments.sort(key=lambda x: x['pago_total'], reverse=True)
+        
+        print(f"💰 Pagos calculados: {len(payments)} conductores | Revenue total: ${revenue_total_todos:,} | Payout total: ${pago_total_todos:,.0f}")
+        
+        return jsonify({
+            'status': 'ok',
+            'periodo': datetime.datetime.now().strftime("%Y-%m"),
+            'fecha_calculo': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'conductores_count': len(payments),
+            'revenue_total_generado': revenue_total_todos,
+            'payout_total': pago_total_todos,
+            'porcentaje_payout': f"{(pago_total_todos/revenue_total_todos)*100:.1f}%" if revenue_total_todos > 0 else "0%",
+            'adride_retencion': revenue_total_todos - pago_total_todos,
+            'detalles': payments
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ Error calculando pagos: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+# ============================================
+# ✅ LEGACY: CALCULAR PAGOS (FÓRMULA ANTIGUA - COMPATIBILIDAD)
+# ============================================
+@app.route('/api/payments/calculate-legacy', methods=['GET'])
+def calculate_payments_legacy():
+    """Calcula pagos con fórmula antigua (km + horas + fondo) - Para compatibilidad"""
     try:
         now = datetime.datetime.now()
         fecha_hoy = now.strftime('%Y-%m-%d')
@@ -576,25 +749,17 @@ def export_csv():
         now = datetime.datetime.now()
         fecha_hoy = now.strftime('%Y-%m-%d')
         
-        csv_content = "device_id,km_recorridos,horas_activas,pago_km,pago_horas,pago_fondo,bono_pico,pago_total,fecha\n"
+        csv_content = "conductor_id,revenue_generado,impresiones,pago_base,pago_bono,pago_total,porcentaje_real,fecha\n"
         
-        for device_id, data in tablets_data.items():
-            km_recorridos = int(km_reports.get(device_id, {}).get(fecha_hoy, 0) or 0)
-            horas_activas = float(data.get('uptime_hours', 0) or 0)
-            impresiones_conductor = int(data.get('total_impressions', 0) or 0)
+        for conductor_id, data in tablets_data.items():
+            total_impressions = int(data.get('total_impressions', 0) or 0)
+            revenue_generado = total_impressions * config["valor_por_impresion"]
+            pago_base = revenue_generado * config["porcentaje_base_conductor"]
+            bono_porcentaje = calcular_bono_desempeno(conductor_id, data)
+            pago_bono = revenue_generado * bono_porcentaje
+            pago_total = min(pago_base + pago_bono, revenue_generado * config["porcentaje_maximo_total"])
             
-            pago_km = km_recorridos * config['tarifa_km']
-            pago_horas = horas_activas * config['tarifa_hora_activa']
-            
-            impresiones_totales = sum(int(t.get('total_impressions', 0) or 0) for t in tablets_data.values())
-            share = impresiones_conductor / impresiones_totales if impresiones_totales > 0 else 0
-            pago_fondo = share * fondo_conductores_diario
-            
-            subtotal = pago_km + pago_horas + pago_fondo
-            bono_pico = subtotal * config['bono_horas_pico_porcentaje'] if km_recorridos >= config['km_minimos_bono'] else 0
-            pago_total = subtotal + bono_pico
-            
-            csv_content += f"{device_id},{km_recorridos},{horas_activas},{pago_km},{pago_horas},{pago_fondo},{bono_pico},{pago_total},{fecha_hoy}\n"
+            csv_content += f"{conductor_id},{revenue_generado},{total_impressions},{round(pago_base)},{round(pago_bono)},{round(pago_total)},{(pago_total/revenue_generado)*100:.1f}%,{fecha_hoy}\n"
         
         return app.response_class(
             response=csv_content,
@@ -606,7 +771,7 @@ def export_csv():
         return jsonify({'error': str(e)}), 500
 
 # ============================================
-# ✅ NUEVO: SERVIR ARCHIVOS SUBIDOS
+# ✅ SERVIR ARCHIVOS SUBIDOS
 # ============================================
 @app.route('/uploads/documentos/<filename>', methods=['GET'])
 def servir_documento(filename):
@@ -622,4 +787,3 @@ cargar_datos()
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
-    
