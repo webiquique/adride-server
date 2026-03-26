@@ -332,22 +332,23 @@
             <div id="km-response" class="response-message"></div>
         </div>
 
-        <!-- Cálculo de Pagos -->
-        <div class="card">
-            <h2>💰 Cálculo de Pagos del Día</h2>
-            <p style="color: #a0a0a0; margin-bottom: 15px;">
-                Fórmula: <strong>(Km × $15) + (Impresiones × $0.03) + Bono 20% (si km ≥ 50)</strong>
-                <br>⚠️ Alerta de fraude si impresiones/km > 50
-            </p>
-            
-            <div id="payments-summary" class="loading">Cargando pagos...</div>
-            
-            <button onclick="exportCSV()" class="btn-primary" style="margin-top: 15px;">
-                📄 Exportar CSV para Transferencia
-            </button>
-            
-            <p class="refresh-info">🔄 Auto-refresh: 60 segundos</p>
-        </div>
+        <!-- ✅ Cálculo de Pagos (NUEVO MODELO 25% + 5% BONO) -->
+<div class="card">
+    <h2>💰 Cálculo de Pagos Mensual</h2>
+    <p style="color: #a0a0a0; margin-bottom: 15px;">
+        Fórmula: <strong>25% Base + hasta 5% Bono por desempeño</strong>
+        <br>📊 Revenue por impresión: $30 CLP | 🎯 Máximo payout: 30% del revenue generado
+        <br>📍 Bono: +1.5% Km ≥ 50 | +1.5% Impresiones ≥ 100 | +1% Documentos | +1% Conectividad
+    </p>
+    
+    <div id="payments-summary" class="loading">Cargando pagos...</div>
+    
+    <button onclick="exportCSV()" class="btn-primary" style="margin-top: 15px;">
+        📄 Exportar CSV para Transferencia
+    </button>
+    
+    <p class="refresh-info">🔄 Auto-refresh: 60 segundos</p>
+</div>
 
         <!-- ✅ NUEVO: Validación de Documentos -->
 <div class="card">
@@ -487,87 +488,106 @@
         // CARGAR PAGOS
         // ========================================
         async function loadPayments() {
-            try {
-                console.log('🔄 Cargando pagos desde:', `${API_BASE}/api/payments/calculate`);
-                
-                const res = await fetch(`${API_BASE}/api/payments/calculate`);
-                
-                if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-                
-                const data = await res.json();
-                console.log('✅ Pagos recibidos:', data);
-                
-                if (!data.detalles || data.detalles.length === 0) {
-                    document.getElementById('payments-summary').innerHTML = 
-                        '<p style="color: #6c757d;">📭 Sin pagos registrados hoy</p>';
-                    return;
-                }
-                
-                let html = `
-                    <table class="payments-table">
-                        <thead>
-                            <tr>
-                                <th>Device ID</th>
-                                <th>Km</th>
-                                <th>Horas</th>
-                                <th>Pago Km</th>
-                                <th>Pago Horas</th>
-                                <th>Pago Fondo</th>
-                                <th>Bono</th>
-                                <th>TOTAL</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                `;
-                
-                data.detalles.forEach(p => {
-                    const pagoKm = p.pago_km ?? 0;
-                    const pagoHoras = p.pago_horas ?? 0;
-                    const pagoFondo = p.pago_fondo ?? 0;
-                    const bonoPico = p.bono_pico ?? 0;
-                    const pagoTotal = p.pago_total ?? 0;
-                    const share = p.share_impresiones ?? 0;
-                    
-                    html += `
-                        <tr>
-                            <td>${p.device_id || 'N/A'}</td>
-                            <td>${p.km_recorridos ?? 0} km</td>
-                            <td>${p.horas_activas ?? 0} h</td>
-                            <td>$${(pagoKm).toLocaleString('es-CL')}</td>
-                            <td>$${(pagoHoras).toLocaleString('es-CL')}</td>
-                            <td>$${(pagoFondo).toLocaleString('es-CL')} <small>(${share}%)</small></td>
-                            <td>$${(bonoPico).toLocaleString('es-CL')}</td>
-                            <td><strong>$${(pagoTotal).toLocaleString('es-CL')}</strong></td>
-                        </tr>
-                    `;
-                });
-                
-                html += `</tbody></table>`;
-                
-                const totalGeneral = data.total_a_pagar ?? 0;
-                html += `<p style="margin-top: 20px; font-size: 1.2em;"><strong>Total a pagar: $${totalGeneral.toLocaleString('es-CL')} CLP</strong></p>`;
-                
-                if (data.detalles[0]?.resumen_negocio) {
-                    const rn = data.detalles[0].resumen_negocio;
-                    html += `
-                        <div style="margin-top: 20px; padding: 15px; background: #e7f3ff; border-radius: 8px;">
-                            <h4 style="margin: 0 0 10px 0;">📊 Resumen de Negocio</h4>
-                            <p style="margin: 5px 0;">Presupuesto Total Mensual: <strong>$${rn.presupuesto_total_mensual.toLocaleString('es-CL')}</strong></p>
-                            <p style="margin: 5px 0;">Fondo Conductores Diario: <strong>$${rn.fondo_conductores_diario.toLocaleString('es-CL')}</strong></p>
-                            <p style="margin: 5px 0;">Porcentaje para Conductores: <strong>${rn.porcentaje_conductores}</strong></p>
-                        </div>
-                    `;
-                }
-                
-                document.getElementById('payments-summary').innerHTML = html;
-                
-            } catch (e) {
-                console.error('❌ Error cargando pagos:', e);
-                document.getElementById('payments-summary').innerHTML = 
-                    `<p style="color: #dc3545;">⚠️ Error: ${e.message}</p>
-                    <p style="color: #6c757d; font-size: 0.9em;">💡 Revisa consola (F12) para detalles</p>`;
-            }
+    try {
+        console.log('🔄 Cargando pagos desde:', `${API_BASE}/api/payments/calculate`);
+        
+        const res = await fetch(`${API_BASE}/api/payments/calculate`, {
+            headers: { 'X-API-Key': API_KEY }  // ✅ Agregar API Key
+        });
+        
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        
+        const data = await res.json();
+        console.log('✅ Pagos recibidos:', data);
+        
+        if (!data.detalles || data.detalles.length === 0) {
+            document.getElementById('payments-summary').innerHTML = 
+                '<p style="color: #6c757d;">📭 Sin pagos registrados este período</p>';
+            return;
         }
+        
+        // ✅ NUEVA TABLA CON FÓRMULA 25% + 5% BONO
+        let html = `
+            <table class="payments-table">
+                <thead>
+                    <tr>
+                        <th>Conductor</th>
+                        <th>Revenue Generado</th>
+                        <th>Impresiones</th>
+                        <th>Base (25%)</th>
+                        <th>Bono (hasta 5%)</th>
+                        <th>TOTAL</th>
+                        <th>% Real</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        
+        data.detalles.forEach(p => {
+            const revenueGenerado = p.revenue_generado ?? 0;
+            const totalImpressions = p.total_impressions ?? 0;
+            const pagoBase = p.pago_base ?? 0;
+            const pagoBono = p.pago_bono ?? 0;
+            const pagoTotal = p.pago_total ?? 0;
+            const porcentajeReal = p.porcentaje_real ?? '0%';
+            
+            html += `
+                <tr>
+                    <td>${p.conductor_id || 'N/A'}</td>
+                    <td><strong>$${(revenueGenerado).toLocaleString('es-CL')}</strong></td>
+                    <td>${totalImpressions}</td>
+                    <td style="color: #2196F3;">$${(pagoBase).toLocaleString('es-CL')}</td>
+                    <td style="color: #FF9800;">$${(pagoBono).toLocaleString('es-CL')}</td>
+                    <td style="color: #4CAF50; font-weight: bold;">$${(pagoTotal).toLocaleString('es-CL')}</td>
+                    <td>${porcentajeReal}</td>
+                </tr>
+            `;
+        });
+        
+        html += `</tbody></table>`;
+        
+        // ✅ ACTUALIZAR TOTALES CON NUEVO MODELO
+        const payoutTotal = data.payout_total ?? 0;
+        const revenueTotal = data.revenue_total_generado ?? 0;
+        const adrideRetencion = data.adride_retencion ?? 0;
+        const porcentajePayout = data.porcentaje_payout ?? '0%';
+        
+        html += `
+            <div style="margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div style="padding: 15px; background: #e8f5e9; border-radius: 8px;">
+                    <h4 style="margin: 0 0 10px 0; color: #2e7d32;">💰 Total a Pagar a Conductores</h4>
+                    <p style="font-size: 1.5em; margin: 0; color: #2e7d32;"><strong>$${payoutTotal.toLocaleString('es-CL')} CLP</strong></p>
+                    <p style="margin: 5px 0; color: #666;">${porcentajePayout} del revenue generado</p>
+                </div>
+                <div style="padding: 15px; background: #fff3e0; border-radius: 8px;">
+                    <h4 style="margin: 0 0 10px 0; color: #ef6c00;">🏢 Retención AdRide</h4>
+                    <p style="font-size: 1.5em; margin: 0; color: #ef6c00;"><strong>$${adrideRetencion.toLocaleString('es-CL')} CLP</strong></p>
+                    <p style="margin: 5px 0; color: #666;">${((adrideRetencion/revenueTotal)*100).toFixed(1)}% del revenue generado</p>
+                </div>
+            </div>
+        `;
+        
+        // ✅ RESUMEN DEL NEGOCIO (ACTUALIZADO)
+        html += `
+            <div style="margin-top: 20px; padding: 15px; background: #e7f3ff; border-radius: 8px;">
+                <h4 style="margin: 0 0 10px 0;">📊 Resumen del Período</h4>
+                <p style="margin: 5px 0;">Revenue Total Generado: <strong>$${revenueTotal.toLocaleString('es-CL')}</strong></p>
+                <p style="margin: 5px 0;">Payout Total Conductores: <strong>$${payoutTotal.toLocaleString('es-CL')}</strong> (${porcentajePayout})</p>
+                <p style="margin: 5px 0;">Retención AdRide: <strong>$${adrideRetencion.toLocaleString('es-CL')}</strong></p>
+                <p style="margin: 5px 0;">Conductores Activos: <strong>${data.conductores_count}</strong></p>
+                <p style="margin: 5px 0; color: #666; font-size: 0.9em;">Período: ${data.periodo} | Calculado: ${data.fecha_calculo}</p>
+            </div>
+        `;
+        
+        document.getElementById('payments-summary').innerHTML = html;
+        
+    } catch (e) {
+        console.error('❌ Error cargando pagos:', e);
+        document.getElementById('payments-summary').innerHTML = 
+            `<p style="color: #dc3545;">⚠️ Error: ${e.message}</p>
+            <p style="color: #6c757d; font-size: 0.9em;">💡 Revisa consola (F12) para detalles</p>`;
+    }
+}
 
         // ========================================
 // ✅ NUEVO: CARGAR DATOS DE PAGO
@@ -736,9 +756,31 @@ async function cargarDatosDePago() {
         // ========================================
         // EXPORTAR CSV
         // ========================================
-        function exportCSV() {
-            window.location.href = `${API_BASE}/api/payments/export/csv`;
-        }
+        async function exportCSV() {
+    try {
+        const res = await fetch(`${API_BASE}/api/payments/export/csv`, {
+            headers: { 'X-API-Key': API_KEY }
+        });
+        
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `pagos_adride_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        
+        console.log('✅ CSV exportado exitosamente');
+        
+    } catch (e) {
+        console.error('❌ Error exportando CSV:', e);
+        alert(`❌ Error exportando CSV: ${e.message}`);
+    }
+}
 
         // ========================================
         // UTILIDADES
