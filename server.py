@@ -122,9 +122,13 @@ def calcular_bono_desempeno(conductor_id, data):
     bono = 0.0
     
     # 📍 Métrica 1: Kilómetros mínimos (+1.5%)
-    km_recorridos = float(data.get('kilometros_recorridos', 0) or 0)
-    if km_recorridos >= config["km_minimos_bono"]:
-        bono += config["bono_km_porcentaje"]
+    # ✅ Usar km_reports para obtener acumulados del día actual
+    fecha_hoy = datetime.datetime.now().strftime('%Y-%m-%d')
+    km_acumulados = km_reports.get(conductor_id, {}).get(fecha_hoy, 0)
+
+if km_acumulados >= config["km_minimos_bono"]:  # ≥ 50 km
+    bono += config["bono_km_porcentaje"]
+    print(f"📍 Bono km aplicado: {conductor_id[:12]}... | Km hoy: {km_acumulados}")
     
     # 📺 Métrica 2: Volumen de impresiones (+1.5%)
     total_impressions = int(data.get('total_impressions', 0) or 0)
@@ -182,6 +186,18 @@ def heartbeat():
         if not device_id:
             return jsonify({'status': 'error', 'message': 'device_id requerido'}), 400
         
+        # ✅ NUEVO: Acumular kilómetros por día (no sobrescribir)
+        fecha_hoy = datetime.datetime.now().strftime('%Y-%m-%d')
+        km_nuevos = float(data.get('kilometros_recorridos', 0) or 0)
+        
+        # ✅ Inicializar si no existe
+        if device_id not in km_reports:
+            km_reports[device_id] = {}
+        
+        # ✅ Acumular km del día actual
+        km_acumulados_hoy = km_reports[device_id].get(fecha_hoy, 0)
+        km_reports[device_id][fecha_hoy] = km_acumulados_hoy + km_nuevos
+        
         tablets_data[device_id] = {
             "device_id": device_id,
             "model": data.get('model', 'Unknown'),
@@ -194,14 +210,14 @@ def heartbeat():
             "is_charging": data.get('is_charging', 'false'),
             "ads_count": data.get('ads_count', '0'),
             "ad_impressions": data.get('ad_impressions', {}),
-            "kilometros_recorridos": data.get('kilometros_recorridos', '0'),  # ✅ Para cálculo de bono
+            "kilometros_recorridos": str(km_reports[device_id][fecha_hoy]),  # ✅ Acumulado del día
             "received_at": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             "last_seen": datetime.datetime.now().timestamp()
         }
         
-        guardar_datos()
+        guardar_datos()  # ✅ Guarda tablets_data Y km_reports
         
-        print(f"❤️ Heartbeat recibido: {device_id[:12]}... | Impresiones: {data.get('total_impressions', 0)}")
+        print(f"❤️ Heartbeat recibido: {device_id[:12]}... | Impresiones: {data.get('total_impressions', 0)} | Km acumulados hoy: {km_reports[device_id][fecha_hoy]}")
         
         return jsonify({
             "status": "ok",
@@ -213,7 +229,6 @@ def heartbeat():
     except Exception as e:
         print(f"❌ Error en heartbeat: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
-
 # ============================================
 # ✅ SUBIR DOCUMENTO
 # ============================================
