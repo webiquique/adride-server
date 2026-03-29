@@ -555,128 +555,173 @@ def km_report():
         print(f"❌ Error en km-report: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-# ============================================
-# ✅ NUEVO MODELO: CALCULAR PAGO POR CHOFER (25% + 5% BONO)
-# ============================================
+
+# ✅ CÁLCULO DE PAGOS POR CONDUCTOR (ACTUALIZADO CON KM)
 @app.route('/api/payments/calculate/<conductor_id>', methods=['GET'])
 def calcular_pago_conductor(conductor_id):
     """
-    Calcula pago mensual por conductor: 25% base + hasta 5% bono
-    SOBRE EL REVENUE GENERADO POR ESE CHOFER ESPECÍFICO
-    Máximo: 30% del revenue generado
+    Calcula payout para un conductor específico usando fórmula 25% + 5%
+    Incluye km_acumulados_hoy desde km_reports
     """
-    try:
-        api_key = request.headers.get('X-API-Key')
-        if api_key != 'adride_iquique_2024_secreto':
-            return jsonify({'status': 'error', 'message': 'API Key inválida'}), 401
-        
-        # ✅ 1. Obtener datos del conductor
-        conductor_data = tablets_data.get(conductor_id, {})
-        
-        # ✅ 2. Calcular revenue generado POR ESTE CHOFER
-        total_impressions = int(conductor_data.get('total_impressions', 0) or 0)
-        valor_por_impresion = config["valor_por_impresion"]
-        revenue_generado = total_impressions * valor_por_impresion
-        
-        # ✅ 3. Calcular base: 25% del revenue generado
-        porcentaje_base = config["porcentaje_base_conductor"]
-        pago_base = revenue_generado * porcentaje_base
-        
-        # ✅ 4. Calcular bono por desempeño (0% a 5%)
-        bono_porcentaje = calcular_bono_desempeno(conductor_id, conductor_data)
-        pago_bono = revenue_generado * bono_porcentaje
-        
-        # ✅ 5. Total: base + bono (TOPE MÁXIMO: 30%)
-        pago_total = min(pago_base + pago_bono, revenue_generado * config["porcentaje_maximo_total"])
-        
-        # ✅ 6. Calcular porcentaje real aplicado
-        porcentaje_real = (pago_total / revenue_generado * 100) if revenue_generado > 0 else 0
-        
-        print(f"💰 Pago calculado: {conductor_id[:12]}... | Revenue: ${revenue_generado:,} | Base (25%): ${pago_base:,.0f} | Bono ({bono_porcentaje*100:.1f}%): ${pago_bono:,.0f} | TOTAL: ${pago_total:,.0f} ({porcentaje_real:.1f}%)")
-        
-        return jsonify({
-            'status': 'ok',
-            'conductor_id': conductor_id,
-            'conductor_id_corto': conductor_id[:12] + '...',
-            'revenue_generado': revenue_generado,
-            'total_impressions': total_impressions,
-            'valor_por_impresion': valor_por_impresion,
-            'pago_base': pago_base,
-            'porcentaje_base': f"{porcentaje_base*100:.0f}%",
-            'pago_bono': pago_bono,
-            'porcentaje_bono': f"{bono_porcentaje*100:.1f}%",
-            'pago_total': pago_total,
-            'porcentaje_real_aplicado': f"{porcentaje_real:.1f}%",
-            'tope_maximo': revenue_generado * config["porcentaje_maximo_total"],
-            'periodo': datetime.datetime.now().strftime("%Y-%m"),
-            'fecha_calculo': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        }), 200
+    if conductor_id not in tablets_data:
+        return jsonify({'error': 'Conductor no encontrado'}), 404
+    
+    data = tablets_data[conductor_id]
+    
+    # 📊 Métricas base
+    total_impressions = int(data.get('total_impressions', 0) or 0)
+    revenue_generado = total_impressions * 30  # $30 CLP por impresión (proxy interno)
+    
+    # 📍 KM ACUMULADOS HOY (desde km_reports)
+    fecha_hoy = datetime.datetime.now().strftime('%Y-%m-%d')
+    km_acumulados_hoy = km_reports.get(conductor_id, {}).get(fecha_hoy, 0.0)
+    
+    # 🧮 Fórmula 25% + 5%
+    pago_base = revenue_generado * config['porcentaje_base']  # 25%
+    
+    # 🎁 Calcular bonos
+    bono_km = 0.0
+    bono_impresiones = 0.0
+    bono_documentos = 0.0
+    bono_conectividad = 0.0
+    
+    # Bono Km: ≥50 km/día
+    if km_acumulados_hoy >= config['km_minimos_bono']:
+        bono_km = revenue_generado * config['bono_km_porcentaje']
+    
+    # Bono Impresiones: ≥100/día
+    if total_impressions >= config['impresiones_minimas_bono']:
+        bono_impresiones = revenue_generado * config['bono_impresiones_porcentaje']
+    
+    # Bono Documentos: todos aprobados
+    if conductor_id in documentos_conductores:
+        docs = documentos_conductores[conductor_id]
+        if docs and all(doc.get('estado') == 'aprobado' for doc in docs.values()):
+            bono_documentos = revenue_generado * config['bono_documentos_aprobados']
+    
+    # Bono Conectividad: heartbeat reciente (<2h)
+    last_seen = data.get('last_seen', 0)
+    if last_seen:
+        try:
+            ahora = datetime.datetime.now().timestamp()
+            diferencia_horas = (ahora - float(last_seen)) / 3600
+            if diferencia_horas < 2:
+                bono_conectividad = revenue_generado * config['bono_conectividad_estable']
+        except:
+            pass
+    
+    # 💰 Total bonos (tope 5%)
+    pago_bono = min(bono_km + bono_impresiones + bono_documentos + bono_conectividad, 
+                    revenue_generado * config['porcentaje_bono_maximo'])
+    
+    # ✅ Payout total (tope 30%)
+    pago_total = min(pago_base + pago_bono, revenue_generado * config['porcentaje_maximo'])
+    porcentaje_real = (pago_total / revenue_generado * 100) if revenue_generado > 0 else 0
+    
+    return jsonify({
+        'conductor_id': conductor_id,
+        'revenue_generado': round(revenue_generado, 2),
+        'total_impressions': total_impressions,
+        'km_acumulados_hoy': round(km_acumulados_hoy, 2),  # ✅ NUEVO: Km automáticos del GPS
+        'pago_base': round(pago_base, 2),
+        'bonos_detalle': {
+            'km': round(bono_km, 2),
+            'impresiones': round(bono_impresiones, 2),
+            'documentos': round(bono_documentos, 2),
+            'conectividad': round(bono_conectividad, 2)
+        },
+        'pago_bono': round(pago_bono, 2),
+        'pago_total': round(pago_total, 2),
+        'porcentaje_real': f"{porcentaje_real:.1f}%"
+    }), 200
         
     except Exception as e:
-        print(f"❌ Error calculando pago: {e}")
+        print(f"❌ Error calculando pagos: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
+
 
 # ============================================
 # ✅ NUEVO MODELO: CALCULAR PAGOS TODOS LOS CHOFERES
 # ============================================
+# ✅ LISTADO DE PAGOS PARA TODOS LOS CONDUCTORES (ACTUALIZADO CON KM)
 @app.route('/api/payments/calculate', methods=['GET'])
 def calcular_pagos_todos():
-    """Calcula pagos para todos los conductores (25% + 5% bono)"""
-    try:
-        api_key = request.headers.get('X-API-Key')
-        if api_key != 'adride_iquique_2024_secreto':
-            return jsonify({'status': 'error', 'message': 'API Key inválida'}), 401
-        
-        payments = []
-        revenue_total_todos = 0
-        pago_total_todos = 0
-        
-        for conductor_id, data in tablets_data.items():
-            # ✅ Calcular revenue por conductor
+    """
+    Retorna cálculo de pagos para todos los conductores activos
+    Incluye km_acumulados_hoy para cada uno
+    """
+    detalles = []
+    payout_total = 0
+    revenue_total = 0
+    
+    for conductor_id in tablets_data.keys():
+        try:
+            # ✅ Reutilizar la lógica del endpoint individual
+            data = tablets_data[conductor_id]
             total_impressions = int(data.get('total_impressions', 0) or 0)
-            valor_por_impresion = config["valor_por_impresion"]
-            revenue_generado = total_impressions * valor_por_impresion
+            revenue_generado = total_impressions * 30
             
-            # ✅ Calcular base + bono
-            porcentaje_base = config["porcentaje_base_conductor"]
-            pago_base = revenue_generado * porcentaje_base
+            # 📍 KM ACUMULADOS HOY
+            fecha_hoy = datetime.datetime.now().strftime('%Y-%m-%d')
+            km_acumulados_hoy = km_reports.get(conductor_id, {}).get(fecha_hoy, 0.0)
             
-            bono_porcentaje = calcular_bono_desempeno(conductor_id, data)
-            pago_bono = revenue_generado * bono_porcentaje
+            # 🧮 Cálculo de payout
+            pago_base = revenue_generado * config['porcentaje_base']
             
-            pago_total = min(pago_base + pago_bono, revenue_generado * config["porcentaje_maximo_total"])
+            bono_km = revenue_generado * config['bono_km_porcentaje'] if km_acumulados_hoy >= config['km_minimos_bono'] else 0
+            bono_impresiones = revenue_generado * config['bono_impresiones_porcentaje'] if total_impressions >= config['impresiones_minimas_bono'] else 0
             
-            revenue_total_todos += revenue_generado
-            pago_total_todos += pago_total
+            bono_documentos = 0
+            if conductor_id in documentos_conductores:
+                docs = documentos_conductores[conductor_id]
+                if docs and all(doc.get('estado') == 'aprobado' for doc in docs.values()):
+                    bono_documentos = revenue_generado * config['bono_documentos_aprobados']
             
-            payments.append({
-                'conductor_id': conductor_id[:12] + '...',
-                'conductor_id_completo': conductor_id,
-                'revenue_generado': revenue_generado,
+            bono_conectividad = 0
+            last_seen = data.get('last_seen', 0)
+            if last_seen:
+                try:
+                    ahora = datetime.datetime.now().timestamp()
+                    if (ahora - float(last_seen)) / 3600 < 2:
+                        bono_conectividad = revenue_generado * config['bono_conectividad_estable']
+                except:
+                    pass
+            
+            pago_bono = min(bono_km + bono_impresiones + bono_documentos + bono_conectividad, 
+                           revenue_generado * config['porcentaje_bono_maximo'])
+            pago_total_conductor = min(pago_base + pago_bono, revenue_generado * config['porcentaje_maximo'])
+            
+            # ✅ Agregar a lista CON KM
+            detalles.append({
+                'conductor_id': conductor_id,
+                'revenue_generado': round(revenue_generado, 2),
                 'total_impressions': total_impressions,
-                'pago_base': round(pago_base),
-                'pago_bono': round(pago_bono),
-                'porcentaje_bono': f"{bono_porcentaje*100:.1f}%",
-                'pago_total': round(pago_total),
-                'porcentaje_real': f"{(pago_total/revenue_generado)*100:.1f}%" if revenue_generado > 0 else "0%"
+                'km_acumulados_hoy': round(km_acumulados_hoy, 2),  # ✅ NUEVO
+                'pago_base': round(pago_base, 2),
+                'pago_bono': round(pago_bono, 2),
+                'pago_total': round(pago_total_conductor, 2),
+                'porcentaje_real': f"{round(pago_total_conductor / revenue_generado * 100, 1) if revenue_generado > 0 else 0}%"
             })
-        
-        # ✅ Ordenar por pago total (mayor a menor)
-        payments.sort(key=lambda x: x['pago_total'], reverse=True)
-        
-        print(f"💰 Pagos calculados: {len(payments)} conductores | Revenue total: ${revenue_total_todos:,} | Payout total: ${pago_total_todos:,.0f}")
-        
-        return jsonify({
-            'status': 'ok',
-            'periodo': datetime.datetime.now().strftime("%Y-%m"),
-            'fecha_calculo': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            'conductores_count': len(payments),
-            'revenue_total_generado': revenue_total_todos,
-            'payout_total': pago_total_todos,
-            'porcentaje_payout': f"{(pago_total_todos/revenue_total_todos)*100:.1f}%" if revenue_total_todos > 0 else "0%",
-            'adride_retencion': revenue_total_todos - pago_total_todos,
-            'detalles': payments
-        }), 200
+            
+            payout_total += pago_total_conductor
+            revenue_total += revenue_generado
+            
+        except Exception as e:
+            print(f"⚠️ Error calculando pago para {conductor_id}: {e}")
+            continue
+    
+    adride_retencion = revenue_total - payout_total
+    
+    return jsonify({
+        'detalles': detalles,
+        'payout_total': round(payout_total, 2),
+        'revenue_total_generado': round(revenue_total, 2),
+        'adride_retencion': round(adride_retencion, 2),
+        'porcentaje_payout': f"{round(payout_total / revenue_total * 100, 1) if revenue_total > 0 else 0}%",
+        'conductores_count': len(detalles),
+        'periodo': 'acumulado',
+        'fecha_calculo': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    }), 200
         
     except Exception as e:
         print(f"❌ Error calculando pagos: {e}")
