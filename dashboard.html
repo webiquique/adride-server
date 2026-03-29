@@ -170,17 +170,18 @@
                 <br><strong style="color: #FF9800;">⚠️ Estos valores son ACUMULADOS. El pago se procesa al cierre mensual.</strong>
             </p>
             
-            <!-- Filtro de Período -->
+            
+            <!-- ✅ CORREGIDO: for e id coinciden exactamente -->
             <div style="margin-bottom: 15px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                <label style="color: #fff; font-size: 0.9em;">Período:</label>
-                <select id="periodo-pagos" onchange="loadPayments()" style="padding: 8px 12px; border-radius: 4px; border: 1px solid #444; background: #1b2838; color: #fff; cursor: pointer;">
-                    <option value="acumulado">📈 Acumulado total (activo)</option>
-                    <option value="hoy" disabled>📅 Hoy (próximamente)</option>
-                    <option value="semana" disabled>📆 Esta semana (próximamente)</option>
-                    <option value="mes" disabled>🗓️ Este mes (próximamente)</option>
-                </select>
-                <small style="color: #6c757d; margin-left: 10px;">💡 Los filtros por fecha estarán disponibles en la v2.0</small>
-            </div>
+               <label style="color: #fff; font-size: 0.9em;" for="periodo-pagos">Período:</label>
+            <select id="periodo-pagos" onchange="loadPayments()" style="padding: 8px 12px; border-radius: 4px; border: 1px solid #444; background: #1b2838; color: #fff; cursor: pointer;">
+                <option value="acumulado">📈 Acumulado total (activo)</option>
+                <option value="hoy" disabled>📅 Hoy (próximamente)</option>
+                <option value="semana" disabled>📆 Esta semana (próximamente)</option>
+                <option value="mes" disabled>🗓️ Este mes (próximamente)</option>
+            </select>
+               <small style="color: #6c757d; margin-left: 10px;">💡 Los filtros por fecha estarán disponibles en la v2.0</small>
+           </div>
             
             <div id="payments-summary" class="loading">Cargando pagos...</div>
             
