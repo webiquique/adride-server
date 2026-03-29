@@ -108,16 +108,11 @@ def guardar_datos():
         print(f"❌ Error guardando datos: {e}")
 
 # ✅ HELPER: Calcular bono por desempeño (0.0 a 0.05)
+
 def calcular_bono_desempeno(conductor_id, data):
     """
     Calcula porcentaje de bono (0% a 5%) según métricas del chofer.
     Retorna valor entre 0.0 y 0.05
-    
-    Métricas:
-    • +1.5% → Kilómetros ≥ 50 km/día
-    • +1.5% → Impresiones ≥ 100/día
-    • +1.0% → Documentos aprobados
-    • +1.0% → Conectividad estable
     """
     bono = 0.0
     
@@ -125,14 +120,14 @@ def calcular_bono_desempeno(conductor_id, data):
     # ✅ Usar km_reports para obtener acumulados del día actual
     fecha_hoy = datetime.datetime.now().strftime('%Y-%m-%d')
     km_acumulados = km_reports.get(conductor_id, {}).get(fecha_hoy, 0)
-
-if km_acumulados >= config["km_minimos_bono"]:  # ≥ 50 km
-    bono += config["bono_km_porcentaje"]
-    print(f"📍 Bono km aplicado: {conductor_id[:12]}... | Km hoy: {km_acumulados}")
+    
+    if km_acumulados >= config["km_minimos_bono"]:  # ≥ 50 km
+        bono += config["bono_km_porcentaje"]
+        print(f"📍 Bono km aplicado: {conductor_id[:12]}... | Km hoy: {km_acumulados}")
     
     # 📺 Métrica 2: Volumen de impresiones (+1.5%)
     total_impressions = int(data.get('total_impressions', 0) or 0)
-    if total_impressions >= config["impresiones_minimas_bono"]:
+    if total_impressions >= config["impresiones_minimas_bono"]:  # ≥ 100
         bono += config["bono_impresiones_porcentaje"]
     
     # 📄 Métrica 3: Documentos aprobados (+1.0%)
