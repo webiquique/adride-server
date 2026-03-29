@@ -5,12 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🚗 AdRide Iquique - Dashboard</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
@@ -18,12 +13,7 @@
             min-height: 100vh;
             padding: 20px;
         }
-
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-
+        .container { max-width: 1400px; margin: 0 auto; }
         header {
             text-align: center;
             margin-bottom: 30px;
@@ -32,25 +22,14 @@
             border-radius: 15px;
             backdrop-filter: blur(10px);
         }
-
-        header h1 {
-            font-size: 2.5em;
-            margin-bottom: 10px;
-            color: #d228a9;
-        }
-
-        header p {
-            color: #a0a0a0;
-            font-size: 1.1em;
-        }
-
+        header h1 { font-size: 2.5em; margin-bottom: 10px; color: #d228a9; }
+        header p { color: #a0a0a0; font-size: 1.1em; }
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 20px;
             margin-bottom: 30px;
         }
-
         .stat-card {
             background: rgba(255, 255, 255, 0.1);
             padding: 25px;
@@ -60,22 +39,9 @@
             border: 1px solid rgba(255, 255, 255, 0.2);
             transition: transform 0.3s ease;
         }
-
-        .stat-card:hover {
-            transform: translateY(-5px);
-        }
-
-        .stat-card h3 {
-            font-size: 3em;
-            color: #d228a9;
-            margin-bottom: 10px;
-        }
-
-        .stat-card p {
-            color: #a0a0a0;
-            font-size: 1.1em;
-        }
-
+        .stat-card:hover { transform: translateY(-5px); }
+        .stat-card h3 { font-size: 3em; color: #d228a9; margin-bottom: 10px; }
+        .stat-card p { color: #a0a0a0; font-size: 1.1em; }
         .card {
             background: rgba(255, 255, 255, 0.1);
             padding: 25px;
@@ -84,19 +50,8 @@
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.2);
         }
-
-        .card h2 {
-            margin-bottom: 20px;
-            color: #d228a9;
-            font-size: 1.8em;
-        }
-
-        .card h3 {
-            margin-bottom: 15px;
-            color: #fff;
-            font-size: 1.4em;
-        }
-
+        .card h2 { margin-bottom: 20px; color: #d228a9; font-size: 1.8em; }
+        .card h3 { margin-bottom: 15px; color: #fff; font-size: 1.4em; }
         table {
             width: 100%;
             border-collapse: collapse;
@@ -105,7 +60,6 @@
             border-radius: 10px;
             overflow: hidden;
         }
-
         table th {
             background: #d228a9;
             color: white;
@@ -113,68 +67,19 @@
             text-align: left;
             font-weight: 600;
         }
-
         table td {
             padding: 12px 10px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
-
-        table tr:hover {
-            background: rgba(210, 40, 169, 0.2);
-        }
-
-        table tr:last-child td {
-            border-bottom: none;
-        }
-
-        .status-online {
-            color: #28a745;
-            font-weight: bold;
-        }
-
-        .status-offline {
-            color: #dc3545;
-            font-weight: bold;
-        }
-
+        table tr:hover { background: rgba(210, 40, 169, 0.2); }
+        table tr:last-child td { border-bottom: none; }
+        .status-online { color: #28a745; font-weight: bold; }
+        .status-offline { color: #dc3545; font-weight: bold; }
         .alerta-fraude {
             background: #f8d7da !important;
             color: #721c24 !important;
             font-weight: bold;
         }
-
-        form {
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-            margin-bottom: 20px;
-        }
-
-        input[type="text"],
-        input[type="number"],
-        input[type="date"] {
-            padding: 12px 15px;
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            border-radius: 8px;
-            background: rgba(0, 0, 0, 0.3);
-            color: #fff;
-            font-size: 1em;
-            flex: 1;
-            min-width: 200px;
-        }
-
-        input[type="text"]:focus,
-        input[type="number"]:focus,
-        input[type="date"]:focus {
-            outline: none;
-            border-color: #d228a9;
-        }
-
-        input[type="date"]::-webkit-calendar-picker-indicator {
-            filter: invert(1);
-            cursor: pointer;
-        }
-
         button {
             padding: 12px 25px;
             border: none;
@@ -184,98 +89,37 @@
             cursor: pointer;
             transition: all 0.3s ease;
         }
-
-        .btn-primary {
-            background: #d228a9;
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: #b51f91;
-            transform: translateY(-2px);
-        }
-
-        .btn-success {
-            background: #28a745;
-            color: white;
-        }
-
-        .btn-success:hover {
-            background: #218838;
-            transform: translateY(-2px);
-        }
-
-        .btn-info {
-            background: #007bff;
-            color: white;
-        }
-
-        .btn-info:hover {
-            background: #0056b3;
-            transform: translateY(-2px);
-        }
-
+        .btn-primary { background: #d228a9; color: white; }
+        .btn-primary:hover { background: #b51f91; transform: translateY(-2px); }
+        .btn-success { background: #28a745; color: white; }
+        .btn-success:hover { background: #218838; transform: translateY(-2px); }
+        .btn-info { background: #007bff; color: white; }
+        .btn-info:hover { background: #0056b3; transform: translateY(-2px); }
         .response-message {
             padding: 15px;
             border-radius: 8px;
             margin-top: 15px;
             display: none;
         }
-
-        .response-success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .response-error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-
+        .response-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .response-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
         .refresh-info {
             text-align: right;
             color: #a0a0a0;
             font-size: 0.9em;
             margin-top: 10px;
         }
-
         .loading {
             text-align: center;
             padding: 40px;
             color: #a0a0a0;
             font-size: 1.2em;
         }
-
         @media (max-width: 768px) {
-            header h1 {
-                font-size: 1.8em;
-            }
-
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
-
-            table {
-                font-size: 0.85em;
-            }
-
-            table th,
-            table td {
-                padding: 8px 5px;
-            }
-
-            form {
-                flex-direction: column;
-            }
-
-            input[type="text"],
-            input[type="number"],
-            input[type="date"],
-            button {
-                width: 100%;
-            }
+            header h1 { font-size: 1.8em; }
+            .stats-grid { grid-template-columns: 1fr; }
+            table { font-size: 0.85em; }
+            table th, table td { padding: 8px 5px; }
         }
     </style>
 </head>
@@ -314,78 +158,56 @@
             <p class="refresh-info">🔄 Auto-refresh: 30 segundos</p>
         </div>
 
-        <!-- Reporte de Kilómetros -->
+        <!-- ✅ Cálculo de Pagos (NUEVO MODELO 25% + 5% BONO) -->
         <div class="card">
-            <h2>📍 Reportar Kilómetros del Día</h2>
+            <h2>💰 Cálculo de Pagos (Acumulado)</h2>
             <p style="color: #a0a0a0; margin-bottom: 15px;">
-                Conductores: Reporten los km recorridos hoy para calcular su pago. 
-                Los km se validan con las impresiones para detectar posibles fraudes.
+                Fórmula: <strong>25% Base + hasta 5% Bono por desempeño</strong>
+                <br>📊 Revenue por impresión: $30 CLP | 🎯 Máximo payout: 30% del revenue generado
+                <br>📍 Bono: +1.5% Km ≥ 50 | +1.5% Impresiones ≥ 100 | +1% Documentos | +1% Conectividad
+                <br><strong style="color: #FF9800;">⚠️ Estos valores son ACUMULADOS. El pago se procesa al cierre mensual.</strong>
             </p>
             
-            <form id="km-report-form">
-                <input type="text" id="km-device-id" placeholder="Device ID de tu tablet (ej: ebbb31a8095b...)" required>
-                <input type="number" id="km-recorridos" placeholder="Km recorridos hoy" min="0" max="500" required>
-                <input type="date" id="km-fecha" required>
-                <button type="submit" class="btn-success">📤 Enviar Km</button>
-            </form>
+            <!-- Filtro de Período -->
+            <div style="margin-bottom: 15px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <label style="color: #fff; font-size: 0.9em;">Período:</label>
+                <select id="periodo-pagos" onchange="loadPayments()" style="padding: 8px 12px; border-radius: 4px; border: 1px solid #444; background: #1b2838; color: #fff; cursor: pointer;">
+                    <option value="acumulado">📈 Acumulado total (activo)</option>
+                    <option value="hoy" disabled>📅 Hoy (próximamente)</option>
+                    <option value="semana" disabled>📆 Esta semana (próximamente)</option>
+                    <option value="mes" disabled>🗓️ Este mes (próximamente)</option>
+                </select>
+                <small style="color: #6c757d; margin-left: 10px;">💡 Los filtros por fecha estarán disponibles en la v2.0</small>
+            </div>
             
-            <div id="km-response" class="response-message"></div>
+            <div id="payments-summary" class="loading">Cargando pagos...</div>
+            
+            <button onclick="exportCSV()" class="btn-primary" style="margin-top: 15px;">
+                📄 Exportar CSV para Transferencia
+            </button>
+            
+            <p class="refresh-info">🔄 Auto-refresh: 60 segundos | 💡 Datos acumulados desde el primer heartbeat</p>
         </div>
 
-        <!-- ✅ Cálculo de Pagos (NUEVO MODELO 25% + 5% BONO) -->
-<div class="card">
-    <h2>💰 Cálculo de Pagos (Acumulado)</h2>
-    <p style="color: #a0a0a0; margin-bottom: 15px;">
-        Fórmula: <strong>25% Base + hasta 5% Bono por desempeño</strong>
-        <br>📊 Revenue por impresión: $30 CLP | 🎯 Máximo payout: 30% del revenue generado
-        <br>📍 Bono: +1.5% Km ≥ 50 | +1.5% Impresiones ≥ 100 | +1% Documentos | +1% Conectividad
-        <br><strong style="color: #FF9800;">⚠️ Estos valores son ACUMULADOS. El pago se procesa al cierre mensual.</strong>
-    </p>
-    
-    <!-- ✅ FILTRO DE PERÍODO (Visual, por ahora solo "Acumulado" activo) -->
-    <div style="margin-bottom: 15px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-        <label style="color: #fff; font-size: 0.9em;">Período:</label>
-        <select id="periodo-pagos" onchange="loadPayments()" style="padding: 8px 12px; border-radius: 4px; border: 1px solid #444; background: #1b2838; color: #fff; cursor: pointer;">
-            <option value="acumulado">📈 Acumulado total (activo)</option>
-            <option value="hoy" disabled>📅 Hoy (próximamente)</option>
-            <option value="semana" disabled>📆 Esta semana (próximamente)</option>
-            <option value="mes" disabled>🗓️ Este mes (próximamente)</option>
-        </select>
-        <small style="color: #6c757d; margin-left: 10px;">💡 Los filtros por fecha estarán disponibles en la v2.0</small>
-    </div>
-    
-    <div id="payments-summary" class="loading">Cargando pagos...</div>
-    
-    <button onclick="exportCSV()" class="btn-primary" style="margin-top: 15px;">
-        📄 Exportar CSV para Transferencia
-    </button>
-    
-    <p class="refresh-info">🔄 Auto-refresh: 60 segundos | 💡 Datos acumulados desde el primer heartbeat</p>
-</div>
+        <!-- ✅ Validación de Documentos -->
+        <div class="card">
+            <h2>📄 Validación de Documentos</h2>
+            <p style="color: #a0a0a0; margin-bottom: 15px;">
+                Revisa y aprueba los documentos subidos por los conductores para validar sus cuentas.
+            </p>
+            <div id="documentos-list" class="loading">Cargando documentos...</div>
+            <p class="refresh-info">🔄 Auto-refresh: 30 segundos</p>
+        </div>
 
-        <!-- ✅ NUEVO: Validación de Documentos -->
-<div class="card">
-    <h2>📄 Validación de Documentos</h2>
-    <p style="color: #a0a0a0; margin-bottom: 15px;">
-        Revisa y aprueba los documentos subidos por los conductores para validar sus cuentas.
-    </p>
-    
-    <div id="documentos-list" class="loading">Cargando documentos...</div>
-    
-    <p class="refresh-info">🔄 Auto-refresh: 30 segundos</p>
-</div>
-
-        <!-- ✅ NUEVO: Datos de Pago de Conductores -->
-<div class="card">
-    <h2>💳 Datos de Pago de Conductores</h2>
-    <p style="color: #a0a0a0; margin-bottom: 15px;">
-        Información bancaria configurada por los conductores para recibir transferencias.
-    </p>
-    
-    <div id="pagos-list" class="loading">Cargando datos de pago...</div>
-    
-    <p class="refresh-info">🔄 Auto-refresh: 60 segundos</p>
-</div>
+        <!-- ✅ Datos de Pago de Conductores -->
+        <div class="card">
+            <h2>💳 Datos de Pago de Conductores</h2>
+            <p style="color: #a0a0a0; margin-bottom: 15px;">
+                Información bancaria configurada por los conductores para recibir transferencias.
+            </p>
+            <div id="pagos-list" class="loading">Cargando datos de pago...</div>
+            <p class="refresh-info">🔄 Auto-refresh: 60 segundos</p>
+        </div>
 
         <!-- Footer -->
         <footer style="text-align: center; color: #a0a0a0; padding: 20px; margin-top: 30px;">
@@ -402,26 +224,21 @@
         </footer>
     </div>
 
-        <!-- Scripts -->
+    <!-- Scripts -->
     <script>
         // Configuración
-        const API_BASE = 'https://adride-server.onrender.com';  // ✅ SIN ESPACIOS
+        const API_BASE = 'https://adride-server.onrender.com';
         const API_KEY = 'adride_iquique_2024_secreto';
 
-        // Establecer fecha de hoy por defecto
-        document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('km-fecha').valueAsDate = new Date();
-        });
-
         // ========================================
-        // CARGAR DATOS PRINCIPALES (ACTUALIZADA)
+        // CARGAR DATOS PRINCIPALES
         // ========================================
         async function loadAllData() {
             await loadTablets();
             await loadStats();
             await loadPayments();
-            await loadDocumentosPendientes(); 
-            await cargarDatosDePago(); // ✅ AGREGADO
+            await loadDocumentosPendientes();
+            await cargarDatosDePago();
         }
 
         // ========================================
@@ -440,17 +257,7 @@
                     return;
                 }
                 
-                let html = `
-                    <table>
-                        <tr>
-                            <th>Device ID</th>
-                            <th>Impresiones</th>
-                            <th>Red</th>
-                            <th>Última Vista</th>
-                            <th>Estado</th>
-                        </tr>
-                `;
-                
+                let html = `<table><tr><th>Device ID</th><th>Impresiones</th><th>Red</th><th>Última Vista</th><th>Estado</th></tr>`;
                 const now = Date.now() / 1000;
                 
                 for (const [deviceId, tablet] of Object.entries(data.tablets)) {
@@ -458,26 +265,22 @@
                     const secondsAgo = Math.max(0, Math.round(now - lastSeen));
                     const isOnline = secondsAgo < 300;
                     
-                    html += `
-                        <tr>
-                            <td>${tablet.device_id}</td>
-                            <td>${tablet.total_impressions.toLocaleString()}</td>
-                            <td>${tablet.network_type}</td>
-                            <td>${formatTimeAgo(secondsAgo)}</td>
-                            <td class="${isOnline ? 'status-online' : 'status-offline'}">
-                                ${isOnline ? '● En línea' : '○ Sin conexión'}
-                            </td>
-                        </tr>
-                    `;
+                    html += `<tr>
+                        <td>${tablet.device_id}</td>
+                        <td>${tablet.total_impressions.toLocaleString()}</td>
+                        <td>${tablet.network_type}</td>
+                        <td>${formatTimeAgo(secondsAgo)}</td>
+                        <td class="${isOnline ? 'status-online' : 'status-offline'}">
+                            ${isOnline ? '● En línea' : '○ Sin conexión'}
+                        </td>
+                    </tr>`;
                 }
-                
                 html += `</table>`;
                 tabletsList.innerHTML = html;
-                
             } catch (e) {
                 console.error('Error cargando tablets:', e);
                 document.getElementById('tablets-list').innerHTML = 
-                    '<p style="color: #dc3545; text-align: center;">Error cargando tablets. Verifica tu conexión.</p>';
+                    '<p style="color: #dc3545; text-align: center;">Error cargando tablets</p>';
             }
         }
 
@@ -488,327 +291,170 @@
             try {
                 const res = await fetch(`${API_BASE}/api/stats`);
                 const data = await res.json();
-                
-                document.getElementById('stat-impressions').textContent = 
-                    (data.total_impressions || 0).toLocaleString();
-                
-            } catch (e) {
-                console.error('Error cargando stats:', e);
-            }
+                document.getElementById('stat-impressions').textContent = (data.total_impressions || 0).toLocaleString();
+            } catch (e) { console.error('Error cargando stats:', e); }
         }
 
         // ========================================
-        // CARGAR PAGOS
+        // CARGAR PAGOS (CON COLUMNA KM AUTOMÁTICOS)
         // ========================================
         async function loadPayments() {
-    try {
-        console.log('🔄 Cargando pagos desde:', `${API_BASE}/api/payments/calculate`);
-        
-        const res = await fetch(`${API_BASE}/api/payments/calculate`, {
-            headers: { 'X-API-Key': API_KEY }
-        });
-        
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-        
-        const data = await res.json();
-        console.log('✅ Pagos recibidos:', data);
-        
-        if (!data.detalles || data.detalles.length === 0) {
-            document.getElementById('payments-summary').innerHTML = 
-                '<p style="color: #6c757d;">📭 Sin pagos registrados este período</p>';
-            return;
-        }
-        
-        // ✅ NUEVA TABLA CON FÓRMULA 25% + 5% BONO
-        let html = `
-            <table class="payments-table">
-                <thead>
-                    <tr>
-                        <th>Conductor</th>
-                        <th>Revenue Generado</th>
-                        <th>Impresiones</th>
-                        <th>Base (25%)</th>
-                        <th>Bono (hasta 5%)</th>
-                        <th>TOTAL</th>
-                        <th>% Real</th>
-                    </tr>
-                </thead>
-                <tbody>
-        `;
-        
-        data.detalles.forEach(p => {
-            const revenueGenerado = p.revenue_generado ?? 0;
-            const totalImpressions = p.total_impressions ?? 0;
-            const pagoBase = p.pago_base ?? 0;
-            const pagoBono = p.pago_bono ?? 0;
-            const pagoTotal = p.pago_total ?? 0;
-            const porcentajeReal = p.porcentaje_real ?? '0%';
-            
-            html += `
-                <tr>
-                    <td>${p.conductor_id || 'N/A'}</td>
-                    <td><strong>$${(revenueGenerado).toLocaleString('es-CL')}</strong></td>
-                    <td>${totalImpressions}</td>
-                    <td style="color: #2196F3;">$${(pagoBase).toLocaleString('es-CL')}</td>
-                    <td style="color: #FF9800;">$${(pagoBono).toLocaleString('es-CL')}</td>
-                    <td style="color: #4CAF50; font-weight: bold;">$${(pagoTotal).toLocaleString('es-CL')}</td>
-                    <td>${porcentajeReal}</td>
-                </tr>
-            `;
-        });
-        
-        html += `</tbody></table>`;
-        
-        // ✅ ACTUALIZAR TOTALES CON NUEVO MODELO
-        const payoutTotal = data.payout_total ?? 0;
-        const revenueTotal = data.revenue_total_generado ?? 0;
-        const adrideRetencion = data.adride_retencion ?? 0;
-        const porcentajePayout = data.porcentaje_payout ?? '0%';
-        
-        html += `
-            <div style="margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                <div style="padding: 15px; background: #e8f5e9; border-radius: 8px; border-left: 4px solid #4CAF50;">
-                    <h4 style="margin: 0 0 10px 0; color: #2e7d32;">💰 Total a Pagar a Conductores</h4>
-                    <p style="font-size: 1.5em; margin: 0; color: #2e7d32;"><strong>$${payoutTotal.toLocaleString('es-CL')} CLP</strong></p>
-                    <p style="margin: 5px 0; color: #666;">${porcentajePayout} del revenue generado</p>
-                </div>
-                <div style="padding: 15px; background: #fff3e0; border-radius: 8px; border-left: 4px solid #FF9800;">
-                    <h4 style="margin: 0 0 10px 0; color: #ef6c00;">🏢 Retención AdRide</h4>
-                    <p style="font-size: 1.5em; margin: 0; color: #ef6c00;"><strong>$${adrideRetencion.toLocaleString('es-CL')} CLP</strong></p>
-                    <p style="margin: 5px 0; color: #666;">${revenueTotal > 0 ? ((adrideRetencion/revenueTotal)*100).toFixed(1) : 0}% del revenue generado</p>
-                </div>
-            </div>
-        `;
-        
-        // ✅ RESUMEN DEL NEGOCIO (ACTUALIZADO)
-        html += `
-            <div style="margin-top: 20px; padding: 15px; background: #e7f3ff; border-radius: 8px;">
-                <h4 style="margin: 0 0 10px 0;">📊 Resumen del Período</h4>
-                <p style="margin: 5px 0;">Revenue Total Generado: <strong>$${revenueTotal.toLocaleString('es-CL')}</strong></p>
-                <p style="margin: 5px 0;">Payout Total Conductores: <strong>$${payoutTotal.toLocaleString('es-CL')}</strong> (${porcentajePayout})</p>
-                <p style="margin: 5px 0;">Retención AdRide: <strong>$${adrideRetencion.toLocaleString('es-CL')}</strong></p>
-                <p style="margin: 5px 0;">Conductores Activos: <strong>${data.conductores_count}</strong></p>
-                <p style="margin: 5px 0; color: #666; font-size: 0.9em;">Período: ${data.periodo} | Calculado: ${data.fecha_calculo}</p>
-            </div>
-        `;
-        
-        // ✅ NUEVO: NOTA ACLARATORIA SOBRE PERÍODO ACUMULADO
-        html += `
-            <div style="margin-top: 20px; padding: 15px; background: #fff3e0; border-left: 4px solid #FF9800; border-radius: 4px;">
-                <p style="margin: 0; color: #ef6c00; font-size: 0.95em;">
-                    <strong>ℹ️ Nota Importante:</strong> Estos valores representan el <strong>acumulado histórico</strong> de cada conductor 
-                    desde su primer heartbeat. El pago real se calcula y transfiere al <strong>cierre del período mensual</strong>. 
-                    Para transferencias, usa el botón "Exportar CSV" al final del mes.
-                </p>
-                <p style="margin: 10px 0 0 0; color: #666; font-size: 0.85em;">
-                    📅 Próximo corte mensual: <strong>${new Date(new Date().getFullYear(), new Date().getMonth()+1, 1).toLocaleDateString('es-CL', {day: 'numeric', month: 'long', year: 'numeric'})}</strong>
-                </p>
-            </div>
-        `;
-        
-        document.getElementById('payments-summary').innerHTML = html;
-        
-    } catch (e) {
-        console.error('❌ Error cargando pagos:', e);
-        document.getElementById('payments-summary').innerHTML = 
-            `<p style="color: #dc3545;">⚠️ Error: ${e.message}</p>
-            <p style="color: #6c757d; font-size: 0.9em;">💡 Revisa consola (F12) para detalles</p>`;
-    }
-}
-
-        // ========================================
-// ✅ NUEVO: CARGAR DATOS DE PAGO
-// ========================================
-async function cargarDatosDePago() {
-    try {
-        console.log('🔄 Cargando datos de pago...');
-        
-        // ✅ Primero obtener lista de tablets/conductores
-        const resTablets = await fetch(`${API_BASE}/api/tablets`, {
-            headers: { 'X-API-Key': API_KEY }
-        });
-        
-        if (!resTablets.ok) throw new Error(`HTTP error! status: ${resTablets.status}`);
-        
-        const tabletsData = await resTablets.json();
-        const listDiv = document.getElementById('pagos-list');
-        
-        if (!tabletsData.tablets || Object.keys(tabletsData.tablets).length === 0) {
-            listDiv.innerHTML = '<p style="color: #6c757d; text-align: center;">📭 No hay conductores registrados</p>';
-            return;
-        }
-        
-        // ✅ Para cada conductor, obtener sus datos de pago
-        let html = `
-            <table>
-                <thead>
-                    <tr>
-                        <th>Conductor (Device ID)</th>
-                        <th>RUT</th>
-                        <th>Nombre Titular</th>
-                        <th>Banco</th>
-                        <th>Tipo Cuenta</th>
-                        <th>Número Cuenta</th>
-                        <th>Email</th>
-                        <th>Actualizado</th>
-                    </tr>
-                </thead>
-                <tbody>
-        `;
-        
-        const conductorIds = Object.keys(tabletsData.tablets);
-        
-        // ✅ Consultar datos de pago para cada conductor
-        for (const conductorId of conductorIds) {
             try {
-                const resPago = await fetch(`${API_BASE}/api/pago/ver/${conductorId}`, {
+                const res = await fetch(`${API_BASE}/api/payments/calculate`, {
                     headers: { 'X-API-Key': API_KEY }
                 });
+                if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                const data = await res.json();
                 
-                if (resPago.ok) {
-                    const pagoData = await resPago.json();
-                    
-                    if (pagoData.pago && !pagoData.pago.rut) {
-                        // ✅ Sin datos de pago
-                        html += `
-                            <tr>
-                                <td>${conductorId.substring(0, 12)}...</td>
-                                <td colspan="7" style="text-align: center; color: #6c757d;">⚠️ Sin configuración de pago</td>
-                            </tr>
-                        `;
-                    } else if (pagoData.pago) {
-                        // ✅ Con datos de pago
-                        const p = pagoData.pago;
-                        html += `
-                            <tr>
-                                <td>${conductorId.substring(0, 12)}...</td>
-                                <td>${p.rut || '-'}</td>
-                                <td>${p.nombre_titular || '-'}</td>
-                                <td>${p.banco || '-'}</td>
-                                <td>${p.tipo_cuenta || '-'}</td>
-                                <td>${p.numero_cuenta || '-'}</td>
-                                <td>${p.email || '-'}</td>
-                                <td>${p.fecha_actualizacion || '-'}</td>
-                            </tr>
-                        `;
-                    }
+                if (!data.detalles || data.detalles.length === 0) {
+                    document.getElementById('payments-summary').innerHTML = 
+                        '<p style="color: #6c757d;">📭 Sin pagos registrados este período</p>';
+                    return;
                 }
+                
+                // ✅ TABLA CON COLUMNA "KM ACUMULADOS" (datos automáticos del GPS)
+                let html = `<table class="payments-table"><thead><tr>
+                    <th>Conductor</th>
+                    <th>Revenue</th>
+                    <th>Impresiones</th>
+                    <th>Km Acumulados</th>
+                    <th>Base (25%)</th>
+                    <th>Bono (hasta 5%)</th>
+                    <th>TOTAL</th>
+                    <th>% Real</th>
+                </tr></thead><tbody>`;
+                
+                data.detalles.forEach(p => {
+                    html += `<tr>
+                        <td>${p.conductor_id?.substring(0,12)}...</td>
+                        <td><strong>$${(p.revenue_generado ?? 0).toLocaleString('es-CL')}</strong></td>
+                        <td>${p.total_impressions ?? 0}</td>
+                        <td style="color: #9C27B0;">${p.km_acumulados_hoy?.toFixed(2) ?? '0.00'} km</td>
+                        <td style="color: #2196F3;">$${(p.pago_base ?? 0).toLocaleString('es-CL')}</td>
+                        <td style="color: #FF9800;">$${(p.pago_bono ?? 0).toLocaleString('es-CL')}</td>
+                        <td style="color: #4CAF50; font-weight: bold;">$${(p.pago_total ?? 0).toLocaleString('es-CL')}</td>
+                        <td>${p.porcentaje_real ?? '0%'}</td>
+                    </tr>`;
+                });
+                
+                html += `</tbody></table>`;
+                
+                // ✅ TOTALES
+                const payoutTotal = data.payout_total ?? 0;
+                const revenueTotal = data.revenue_total_generado ?? 0;
+                const adrideRetencion = data.adride_retencion ?? 0;
+                const porcentajePayout = data.porcentaje_payout ?? '0%';
+                
+                html += `<div style="margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div style="padding: 15px; background: #e8f5e9; border-radius: 8px; border-left: 4px solid #4CAF50;">
+                        <h4 style="margin: 0 0 10px 0; color: #2e7d32;">💰 Total a Pagar a Conductores</h4>
+                        <p style="font-size: 1.5em; margin: 0; color: #2e7d32;"><strong>$${payoutTotal.toLocaleString('es-CL')} CLP</strong></p>
+                        <p style="margin: 5px 0; color: #666;">${porcentajePayout} del revenue generado</p>
+                    </div>
+                    <div style="padding: 15px; background: #fff3e0; border-radius: 8px; border-left: 4px solid #FF9800;">
+                        <h4 style="margin: 0 0 10px 0; color: #ef6c00;">🏢 Retención AdRide</h4>
+                        <p style="font-size: 1.5em; margin: 0; color: #ef6c00;"><strong>$${adrideRetencion.toLocaleString('es-CL')} CLP</strong></p>
+                        <p style="margin: 5px 0; color: #666;">${revenueTotal > 0 ? ((adrideRetencion/revenueTotal)*100).toFixed(1) : 0}% del revenue generado</p>
+                    </div>
+                </div>`;
+                
+                // ✅ RESUMEN
+                html += `<div style="margin-top: 20px; padding: 15px; background: #e7f3ff; border-radius: 8px;">
+                    <h4 style="margin: 0 0 10px 0;">📊 Resumen del Período</h4>
+                    <p style="margin: 5px 0;">Revenue Total: <strong>$${revenueTotal.toLocaleString('es-CL')}</strong></p>
+                    <p style="margin: 5px 0;">Payout Conductores: <strong>$${payoutTotal.toLocaleString('es-CL')}</strong> (${porcentajePayout})</p>
+                    <p style="margin: 5px 0;">Retención AdRide: <strong>$${adrideRetencion.toLocaleString('es-CL')}</strong></p>
+                    <p style="margin: 5px 0;">Conductores Activos: <strong>${data.conductores_count}</strong></p>
+                    <p style="margin: 5px 0; color: #666; font-size: 0.9em;">Período: ${data.periodo} | Calculado: ${data.fecha_calculo}</p>
+                </div>`;
+                
+                // ✅ NOTA ACLARATORIA
+                html += `<div style="margin-top: 20px; padding: 15px; background: #fff3e0; border-left: 4px solid #FF9800; border-radius: 4px;">
+                    <p style="margin: 0; color: #ef6c00; font-size: 0.95em;">
+                        <strong>ℹ️ Nota:</strong> Los kilómetros se registran automáticamente vía GPS. 
+                        Los valores son <strong>acumulados históricos</strong>. El pago se transfiere al cierre mensual.
+                    </p>
+                </div>`;
+                
+                document.getElementById('payments-summary').innerHTML = html;
             } catch (e) {
-                console.error(`Error cargando pago para ${conductorId}:`, e);
+                console.error('❌ Error cargando pagos:', e);
+                document.getElementById('payments-summary').innerHTML = 
+                    `<p style="color: #dc3545;">⚠️ Error: ${e.message}</p>`;
             }
         }
-        
-        html += `</tbody></table>`;
-        listDiv.innerHTML = html;
-        
-    } catch (e) {
-        console.error('❌ Error cargando datos de pago:', e);
-        document.getElementById('pagos-list').innerHTML = 
-            `<p style="color: #dc3545;">⚠️ Error: ${e.message}</p>`;
-    }
-}
 
         // ========================================
-        // FORMULARIO DE REPORTE DE KM
+        // CARGAR DATOS DE PAGO
         // ========================================
-        document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('km-report-form').addEventListener('submit', async (e) => {
-                e.preventDefault();
+        async function cargarDatosDePago() {
+            try {
+                const resTablets = await fetch(`${API_BASE}/api/tablets`, { headers: { 'X-API-Key': API_KEY } });
+                if (!resTablets.ok) throw new Error(`HTTP error! status: ${resTablets.status}`);
+                const tabletsData = await resTablets.json();
+                const listDiv = document.getElementById('pagos-list');
                 
-                const deviceId = document.getElementById('km-device-id').value.trim();
-                const kmRecorridos = parseFloat(document.getElementById('km-recorridos').value);
-                const fecha = document.getElementById('km-fecha').value;
-                const responseDiv = document.getElementById('km-response');
-                
-                if (!deviceId || !kmRecorridos || !fecha) {
-                    showResponse(responseDiv, '❌ Completa todos los campos', 'error');
+                if (!tabletsData.tablets || Object.keys(tabletsData.tablets).length === 0) {
+                    listDiv.innerHTML = '<p style="color: #6c757d; text-align: center;">📭 No hay conductores registrados</p>';
                     return;
                 }
                 
-                if (kmRecorridos < 0 || kmRecorridos > 500) {
-                    showResponse(responseDiv, '❌ Los km deben estar entre 0 y 500', 'error');
-                    return;
-                }
+                let html = `<table><thead><tr>
+                    <th>Conductor</th><th>RUT</th><th>Nombre</th><th>Banco</th><th>Tipo Cuenta</th><th>Número</th><th>Email</th>
+                </tr></thead><tbody>`;
                 
-                const data = {
-                    device_id: deviceId,
-                    km_recorridos: kmRecorridos,
-                    fecha: fecha
-                };
-                
-                try {
-                    const res = await fetch(`${API_BASE}/api/km-report`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-API-Key': API_KEY
-                        },
-                        body: JSON.stringify(data)
-                    });
-                    
-                    const result = await res.json();
-                    
-                    if (result.status === 'ok') {
-                        showResponse(responseDiv, `✅ ${result.message}`, 'success');
-                        document.getElementById('km-recorridos').value = '';
-                        document.getElementById('km-device-id').value = '';
-                        await loadPayments();
-                    } else {
-                        showResponse(responseDiv, `❌ Error: ${result.message}`, 'error');
-                    }
-                } catch (e) {
-                    showResponse(responseDiv, `❌ Error de conexión: ${e.message}`, 'error');
+                for (const conductorId of Object.keys(tabletsData.tablets)) {
+                    try {
+                        const resPago = await fetch(`${API_BASE}/api/pago/ver/${conductorId}`, { headers: { 'X-API-Key': API_KEY } });
+                        if (resPago.ok) {
+                            const pagoData = await resPago.json();
+                            if (pagoData.pago?.rut) {
+                                const p = pagoData.pago;
+                                html += `<tr>
+                                    <td>${conductorId.substring(0, 12)}...</td>
+                                    <td>${p.rut || '-'}</td>
+                                    <td>${p.nombre_titular || '-'}</td>
+                                    <td>${p.banco || '-'}</td>
+                                    <td>${p.tipo_cuenta || '-'}</td>
+                                    <td>${p.numero_cuenta || '-'}</td>
+                                    <td>${p.email || '-'}</td>
+                                </tr>`;
+                            } else {
+                                html += `<tr><td>${conductorId.substring(0, 12)}...</td><td colspan="6" style="text-align:center;color:#6c757d;">⚠️ Sin configuración</td></tr>`;
+                            }
+                        }
+                    } catch (e) { console.error(`Error cargando pago para ${conductorId}:`, e); }
                 }
-            });
-        });
-
-        // ========================================
-        // MOSTRAR MENSAJE DE RESPUESTA
-        // ========================================
-        function showResponse(element, message, type) {
-            element.style.display = 'block';
-            element.textContent = message;
-            
-            if (type === 'success') {
-                element.className = 'response-message response-success';
-            } else {
-                element.className = 'response-message response-error';
+                html += `</tbody></table>`;
+                listDiv.innerHTML = html;
+            } catch (e) {
+                console.error('❌ Error cargando datos de pago:', e);
+                document.getElementById('pagos-list').innerHTML = `<p style="color: #dc3545;">⚠️ Error: ${e.message}</p>`;
             }
-            
-            setTimeout(() => {
-                element.style.display = 'none';
-            }, 5000);
         }
 
         // ========================================
         // EXPORTAR CSV
         // ========================================
         async function exportCSV() {
-    try {
-        const res = await fetch(`${API_BASE}/api/payments/export/csv`, {
-            headers: { 'X-API-Key': API_KEY }
-        });
-        
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-        
-        const blob = await res.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `pagos_adride_${new Date().toISOString().split('T')[0]}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-        
-        console.log('✅ CSV exportado exitosamente');
-        alert('✅ CSV descargado. Los valores son ACUMULADOS. Filtra por fecha al momento de transferir.');
-        
-    } catch (e) {
-        console.error('❌ Error exportando CSV:', e);
-        alert(`❌ Error exportando CSV: ${e.message}`);
-    }
-}
+            try {
+                const res = await fetch(`${API_BASE}/api/payments/export/csv`, { headers: { 'X-API-Key': API_KEY } });
+                if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                const blob = await res.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `pagos_adride_${new Date().toISOString().split('T')[0]}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                alert('✅ CSV descargado. Valores acumulados - filtrar por fecha al transferir.');
+            } catch (e) {
+                console.error('❌ Error exportando CSV:', e);
+                alert(`❌ Error: ${e.message}`);
+            }
+        }
 
         // ========================================
         // UTILIDADES
@@ -820,144 +466,85 @@ async function cargarDatosDePago() {
         }
 
         // ========================================
-        // ✅ NUEVO: CARGAR DOCUMENTOS PENDIENTES (FUERA DEL EVENT LISTENER)
+        // CARGAR DOCUMENTOS PENDIENTES
         // ========================================
         async function loadDocumentosPendientes() {
             try {
-                console.log('🔄 Cargando documentos pendientes...');
-                
-                const res = await fetch(`${API_BASE}/api/admin/documentos/pendientes`, {
-                    headers: { 'X-API-Key': API_KEY }
-                });
-                
+                const res = await fetch(`${API_BASE}/api/admin/documentos/pendientes`, { headers: { 'X-API-Key': API_KEY } });
                 if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-                
                 const data = await res.json();
-                console.log('✅ Documentos recibidos:', data);
-                
                 const listDiv = document.getElementById('documentos-list');
                 
                 if (!data.pendientes || data.pendientes.length === 0) {
-                    listDiv.innerHTML = '<p style="color: #28a745; text-align: center;">✅ No hay documentos pendientes de validación</p>';
+                    listDiv.innerHTML = '<p style="color: #28a745; text-align: center;">✅ No hay documentos pendientes</p>';
                     return;
                 }
                 
-                let html = `
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Conductor</th>
-                                <th>Documento</th>
-                                <th>Fecha Subida</th>
-                                <th>Vista Previa</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                `;
+                let html = `<table><thead><tr><th>Conductor</th><th>Documento</th><th>Fecha</th><th>Vista</th><th>Acciones</th></tr></thead><tbody>`;
                 
                 data.pendientes.forEach(doc => {
                     const imageUrl = `${API_BASE}${doc.foto_url}`;
-                    
-                    html += `
-                        <tr>
-                            <td>${doc.conductor_id_corto}</td>
-                            <td>${doc.tipo_documento}</td>
-                            <td>${doc.fecha_subida}</td>
-                            <td>
-                                <a href="${imageUrl}" target="_blank" style="color: #d228a9;">👁️ Ver</a>
-                            </td>
-                            <td>
-                                <button class="btn-success" onclick="validarDocumento('${doc.conductor_id}', '${doc.tipo_documento}', 'aprobado')">✅ Aprobar</button>
-                                <button class="btn-primary" style="background: #dc3545;" onclick="validarDocumento('${doc.conductor_id}', '${doc.tipo_documento}', 'rechazado')">❌ Rechazar</button>
-                                <button class="btn-primary" style="background: #6c757d;" onclick="eliminarDocumento('${doc.conductor_id}', '${doc.tipo_documento}')">🗑️ Eliminar</button>
-                            </td>
-                        </tr>
-                    `;
+                    html += `<tr>
+                        <td>${doc.conductor_id_corto}</td>
+                        <td>${doc.tipo_documento}</td>
+                        <td>${doc.fecha_subida}</td>
+                        <td><a href="${imageUrl}" target="_blank" style="color: #d228a9;">👁️ Ver</a></td>
+                        <td>
+                            <button class="btn-success" onclick="validarDocumento('${doc.conductor_id}', '${doc.tipo_documento}', 'aprobado')">✅</button>
+                            <button class="btn-primary" style="background:#dc3545;" onclick="validarDocumento('${doc.conductor_id}', '${doc.tipo_documento}', 'rechazado')">❌</button>
+                            <button class="btn-primary" style="background:#6c757d;" onclick="eliminarDocumento('${doc.conductor_id}', '${doc.tipo_documento}')">🗑️</button>
+                        </td>
+                    </tr>`;
                 });
-                
                 html += `</tbody></table>`;
                 listDiv.innerHTML = html;
-                
             } catch (e) {
                 console.error('❌ Error cargando documentos:', e);
-                document.getElementById('documentos-list').innerHTML = 
-                    `<p style="color: #dc3545;">⚠️ Error: ${e.message}</p>`;
+                document.getElementById('documentos-list').innerHTML = `<p style="color: #dc3545;">⚠️ Error: ${e.message}</p>`;
             }
         }
 
-        // ========================================
-        // ✅ NUEVO: VALIDAR DOCUMENTO (FUERA DEL EVENT LISTENER)
-        // ========================================
         async function validarDocumento(conductor_id, tipo_documento, accion) {
             if (!confirm(`¿${accion === 'aprobado' ? '✅ Aprobar' : '❌ Rechazar'} este documento?`)) return;
-            
             try {
                 const res = await fetch(`${API_BASE}/api/admin/documentos/${conductor_id}/${tipo_documento}/validar`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-API-Key': API_KEY
-                    },
-                    body: JSON.stringify({ 
-                        accion: accion,
-                        comentario: ''
-                    })
+                    headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY },
+                    body: JSON.stringify({ accion, comentario: '' })
                 });
-                
                 const data = await res.json();
-                
                 if (data.status === 'ok') {
                     alert(`📄 Documento ${accion === 'aprobado' ? 'aprobado ✅' : 'rechazado ❌'}`);
                     loadDocumentosPendientes();
                     loadStats();
-                } else {
-                    alert(`❌ Error: ${data.message}`);
-                }
-            } catch (e) {
-                console.error('❌ Error validando:', e);
-                alert(`❌ Error de conexión: ${e.message}`);
-            }
+                } else { alert(`❌ Error: ${data.message}`); }
+            } catch (e) { alert(`❌ Error: ${e.message}`); }
+        }
+
+        async function eliminarDocumento(conductor_id, tipo_documento) {
+            if (!confirm(`⚠️ ¿Eliminar permanentemente este documento?`)) return;
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/documentos/${conductor_id}/${tipo_documento}/eliminar`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-API-Key': API_KEY }
+                });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    alert(`🗑️ ${data.message}`);
+                    loadDocumentosPendientes();
+                    loadStats();
+                } else { alert(`❌ Error: ${data.message}`); }
+            } catch (e) { alert(`❌ Error: ${e.message}`); }
         }
 
         // ========================================
-// ✅ NUEVO: ELIMINAR DOCUMENTO
-// ========================================
-async function eliminarDocumento(conductor_id, tipo_documento) {
-    if (!confirm(`⚠️ ¿Estás SEGURO de eliminar este documento?\n\nEsta acción es PERMANENTE y no se puede deshacer.`)) return;
-    
-    try {
-        const res = await fetch(`${API_BASE}/api/admin/documentos/${conductor_id}/${tipo_documento}/eliminar`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-API-Key': API_KEY
-            }
-        });
-        
-        const data = await res.json();
-        
-        if (data.status === 'ok') {
-            alert(`🗑️ ${data.message}`);
-            loadDocumentosPendientes();  // Recargar lista
-            loadStats();  // Actualizar contador de pendientes
-        } else {
-            alert(`❌ Error: ${data.message}`);
-        }
-    } catch (e) {
-        console.error('❌ Error eliminando:', e);
-        alert(`❌ Error de conexión: ${e.message}`);
-    }
-}
-
-        // ========================================
-        // AUTO-REFRESH (FUERA DEL EVENT LISTENER)
+        // AUTO-REFRESH
         // ========================================
         setInterval(loadTablets, 30000);
         setInterval(loadStats, 30000);
         setInterval(loadPayments, 60000);
-        setInterval(loadDocumentosPendientes, 30000); 
-        setInterval(cargarDatosDePago, 60000); // ✅ AGREGADO
+        setInterval(loadDocumentosPendientes, 30000);
+        setInterval(cargarDatosDePago, 60000);
 
         // ========================================
         // CARGA INICIAL
@@ -967,6 +554,5 @@ async function eliminarDocumento(conductor_id, tipo_documento) {
             console.log('🚗 AdRide Dashboard cargado correctamente');
         });
     </script>
-   
 </body>
 </html>
