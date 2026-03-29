@@ -629,90 +629,93 @@ def calcular_pago_conductor(conductor_id):
 
 
 
-# ✅ LISTADO DE PAGOS PARA TODOS LOS CONDUCTORES (ACTUALIZADO CON KM)
+
+
+# ✅ LISTADO DE PAGOS PARA TODOS LOS CONDUCTORES (CORREGIDO CON TRY EXTERNO)
 @app.route('/api/payments/calculate', methods=['GET'])
 def calcular_pagos_todos():
     """
     Retorna cálculo de pagos para todos los conductores activos
     Incluye km_acumulados_hoy para cada uno
     """
-    detalles = []
-    payout_total = 0
-    revenue_total = 0
-    
-    for conductor_id in tablets_data.keys():
-        try:
-            # ✅ Reutilizar la lógica del endpoint individual
-            data = tablets_data[conductor_id]
-            total_impressions = int(data.get('total_impressions', 0) or 0)
-            revenue_generado = total_impressions * 30
-            
-            # 📍 KM ACUMULADOS HOY
-            fecha_hoy = datetime.datetime.now().strftime('%Y-%m-%d')
-            km_acumulados_hoy = km_reports.get(conductor_id, {}).get(fecha_hoy, 0.0)
-            
-            # 🧮 Cálculo de payout
-            pago_base = revenue_generado * config['porcentaje_base']
-            
-            bono_km = revenue_generado * config['bono_km_porcentaje'] if km_acumulados_hoy >= config['km_minimos_bono'] else 0
-            bono_impresiones = revenue_generado * config['bono_impresiones_porcentaje'] if total_impressions >= config['impresiones_minimas_bono'] else 0
-            
-            bono_documentos = 0
-            if conductor_id in documentos_conductores:
-                docs = documentos_conductores[conductor_id]
-                if docs and all(doc.get('estado') == 'aprobado' for doc in docs.values()):
-                    bono_documentos = revenue_generado * config['bono_documentos_aprobados']
-            
-            bono_conectividad = 0
-            last_seen = data.get('last_seen', 0)
-            if last_seen:
-                try:
-                    ahora = datetime.datetime.now().timestamp()
-                    if (ahora - float(last_seen)) / 3600 < 2:
-                        bono_conectividad = revenue_generado * config['bono_conectividad_estable']
-                except:
-                    pass
-            
-            pago_bono = min(bono_km + bono_impresiones + bono_documentos + bono_conectividad, 
-                           revenue_generado * config['porcentaje_bono_maximo'])
-            pago_total_conductor = min(pago_base + pago_bono, revenue_generado * config['porcentaje_maximo'])
-            
-            # ✅ Agregar a lista CON KM
-            detalles.append({
-                'conductor_id': conductor_id,
-                'revenue_generado': round(revenue_generado, 2),
-                'total_impressions': total_impressions,
-                'km_acumulados_hoy': round(km_acumulados_hoy, 2),  # ✅ NUEVO
-                'pago_base': round(pago_base, 2),
-                'pago_bono': round(pago_bono, 2),
-                'pago_total': round(pago_total_conductor, 2),
-                'porcentaje_real': f"{round(pago_total_conductor / revenue_generado * 100, 1) if revenue_generado > 0 else 0}%"
-            })
-            
-            payout_total += pago_total_conductor
-            revenue_total += revenue_generado
-            
-        except Exception as e:
-            print(f"⚠️ Error calculando pago para {conductor_id}: {e}")
-            continue
-    
-    adride_retencion = revenue_total - payout_total
-    
-    return jsonify({
-        'detalles': detalles,
-        'payout_total': round(payout_total, 2),
-        'revenue_total_generado': round(revenue_total, 2),
-        'adride_retencion': round(adride_retencion, 2),
-        'porcentaje_payout': f"{round(payout_total / revenue_total * 100, 1) if revenue_total > 0 else 0}%",
-        'conductores_count': len(detalles),
-        'periodo': 'acumulado',
-        'fecha_calculo': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    }), 200
+    try:  # ← ✅ AGREGADO: Try externo para TODA la función
+        detalles = []
+        payout_total = 0
+        revenue_total = 0
         
-    except Exception as e:
+        for conductor_id in tablets_data.keys():
+            try:
+                # ✅ Reutilizar la lógica del endpoint individual
+                data = tablets_data[conductor_id]
+                total_impressions = int(data.get('total_impressions', 0) or 0)
+                revenue_generado = total_impressions * 30
+                
+                # 📍 KM ACUMULADOS HOY
+                fecha_hoy = datetime.datetime.now().strftime('%Y-%m-%d')
+                km_acumulados_hoy = km_reports.get(conductor_id, {}).get(fecha_hoy, 0.0)
+                
+                # 🧮 Cálculo de payout
+                pago_base = revenue_generado * config['porcentaje_base']
+                
+                bono_km = revenue_generado * config['bono_km_porcentaje'] if km_acumulados_hoy >= config['km_minimos_bono'] else 0
+                bono_impresiones = revenue_generado * config['bono_impresiones_porcentaje'] if total_impressions >= config['impresiones_minimas_bono'] else 0
+                
+                bono_documentos = 0
+                if conductor_id in documentos_conductores:
+                    docs = documentos_conductores[conductor_id]
+                    if docs and all(doc.get('estado') == 'aprobado' for doc in docs.values()):
+                        bono_documentos = revenue_generado * config['bono_documentos_aprobados']
+                
+                bono_conectividad = 0
+                last_seen = data.get('last_seen', 0)
+                if last_seen:
+                    try:
+                        ahora = datetime.datetime.now().timestamp()
+                        if (ahora - float(last_seen)) / 3600 < 2:
+                            bono_conectividad = revenue_generado * config['bono_conectividad_estable']
+                    except:
+                        pass
+                
+                pago_bono = min(bono_km + bono_impresiones + bono_documentos + bono_conectividad, 
+                               revenue_generado * config['porcentaje_bono_maximo'])
+                pago_total_conductor = min(pago_base + pago_bono, revenue_generado * config['porcentaje_maximo'])
+                
+                # ✅ Agregar a lista CON KM
+                detalles.append({
+                    'conductor_id': conductor_id,
+                    'revenue_generado': round(revenue_generado, 2),
+                    'total_impressions': total_impressions,
+                    'km_acumulados_hoy': round(km_acumulados_hoy, 2),
+                    'pago_base': round(pago_base, 2),
+                    'pago_bono': round(pago_bono, 2),
+                    'pago_total': round(pago_total_conductor, 2),
+                    'porcentaje_real': f"{round(pago_total_conductor / revenue_generado * 100, 1) if revenue_generado > 0 else 0}%"
+                })
+                
+                payout_total += pago_total_conductor
+                revenue_total += revenue_generado
+                
+            except Exception as e:
+                print(f"⚠️ Error calculando pago para {conductor_id}: {e}")
+                continue
+        
+        adride_retencion = revenue_total - payout_total
+        
+        return jsonify({
+            'detalles': detalles,
+            'payout_total': round(payout_total, 2),
+            'revenue_total_generado': round(revenue_total, 2),
+            'adride_retencion': round(adride_retencion, 2),
+            'porcentaje_payout': f"{round(payout_total / revenue_total * 100, 1) if revenue_total > 0 else 0}%",
+            'conductores_count': len(detalles),
+            'periodo': 'acumulado',
+            'fecha_calculo': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        }), 200
+        
+    except Exception as e:  # ← ✅ Ahora este except tiene su try correspondiente
         print(f"❌ Error calculando pagos: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
-
+        
 # ============================================
 # ✅ LEGACY: CALCULAR PAGOS (FÓRMULA ANTIGUA - COMPATIBILIDAD)
 # ============================================
