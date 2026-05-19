@@ -229,6 +229,32 @@ def heartbeat():
     except Exception as e:
         print(f"❌ Error en heartbeat: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
+
+# ============================================
+# ✅ CLIMA IQUIQUE - Para pasajeros
+# ============================================
+@app.route('/api/clima', methods=['GET'])
+def get_clima():
+    """Retorna clima actual de Iquique para mostrar en tablets"""
+    try:
+        # ✅ CLIMA ESTÁTICO (puedes editarlo manualmente)
+        # Después integramos API de OpenWeatherMap
+        clima = {
+            "ciudad": "Iquique",
+            "temperatura": 24,
+            "condicion": "Soleado",
+            "icono": "soleado",  # soleado, nublado, parcialmente_nublado
+            "uv": "Alto",
+            "humedad": 65,
+            "viento_km": 18,
+            "actualizado": datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
+        }
+        
+        return jsonify(clima), 200
+        
+    except Exception as e:
+        print(f"❌ Error en clima: {e}")
+        return jsonify({'error': str(e)}), 500
 # ============================================
 # ✅ SUBIR DOCUMENTO
 # ============================================
