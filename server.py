@@ -239,7 +239,7 @@ def heartbeat():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # ============================================
-# ✅ CLIMA IQUIQUE - CON API REAL (OpenWeatherMap)
+# ✅ CLIMA IQUIQUE - CON API REAL (VERSIÓN CORREGIDA)
 # ============================================
 @app.route('/api/clima', methods=['GET'])
 def get_clima():
@@ -251,28 +251,33 @@ def get_clima():
         if CLIMA_CACHE and CLIMA_CACHE_TIME:
             tiempo_transcurrido = datetime.datetime.now() - CLIMA_CACHE_TIME
             if tiempo_transcurrido.total_seconds() < CACHE_DURATION_MIN * 60:
-                Log.d("AdRide", "🌤️ Usando clima en cache")
+                print("✅ [AdRide] Usando clima en cache")
                 return jsonify(CLIMA_CACHE), 200
         
         # ✅ Si no hay cache o expiró, llamar a la API
-        if not OPENWEATHER_API_KEY:
-         # API Key no configurada → usar fallback
-         Log.w("AdRide", "⚠️ API Key no configurada, usando fallback")
-         return jsonify(get_clima_estatico()), 200
+        if not OPENWEATHER_API_KEY or OPENWEATHER_API_KEY == "":
+            print("⚠️ [AdRide] API Key no configurada, usando fallback")
+            return jsonify(get_clima_estatico()), 200
+        
+        print(f"🔑 [AdRide] API Key presente (longitud: {len(OPENWEATHER_API_KEY)})")
         
         # ✅ Llamar a OpenWeatherMap
         url = f"https://api.openweathermap.org/data/2.5/weather"
         params = {
             "q": OPENWEATHER_CITY,
             "appid": OPENWEATHER_API_KEY,
-            "units": "metric",  # Celsius
-            "lang": "es"  # Español
+            "units": "metric",
+            "lang": "es"
         }
         
-        response = requests.get(url, params=params, timeout=5)
+        print(f"🌐 [AdRide] Llamando a API: {OPENWEATHER_CITY}")
+        
+        response = requests.get(url, params=params, timeout=10)
+        
+        print(f"📡 [AdRide] Respuesta API: status={response.status_code}")
         
         if response.status_code != 200:
-            Log.w("AdRide", f"⚠️ API clima falló: {response.status_code}")
+            print(f"❌ [AdRide] API falló: {response.status_code} - {response.text[:200]}")
             return jsonify(get_clima_estatico()), 200
         
         data = response.json()
@@ -281,7 +286,6 @@ def get_clima():
         weather_main = data['weather'][0]['main'].lower()
         weather_desc = data['weather'][0]['description'].title()
         
-        # Mapear condición a nuestros valores
         condicion_map = {
             'clear': 'Soleado',
             'clouds': 'Nublado',
@@ -293,7 +297,6 @@ def get_clima():
         }
         condicion = condicion_map.get(weather_main, 'Soleado')
         
-        # Mapear ícono
         icono_map = {
             'clear': 'soleado',
             'clouds': 'nublado',
@@ -305,7 +308,7 @@ def get_clima():
         }
         icono = icono_map.get(weather_main, 'soleado')
         
-        # Calcular UV (aproximado según hora del día)
+        # Calcular UV aproximado según hora del día
         hora_actual = datetime.datetime.now().hour
         if 10 <= hora_actual <= 16:
             uv = "Muy Alto"
@@ -322,7 +325,7 @@ def get_clima():
             "icono": icono,
             "uv": uv,
             "humedad": data['main']['humidity'],
-            "viento_km": int(data['wind']['speed'] * 3.6),  # m/s a km/h
+            "viento_km": int(data['wind']['speed'] * 3.6),
             "actualizado": datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
         }
         
@@ -330,14 +333,24 @@ def get_clima():
         CLIMA_CACHE = clima
         CLIMA_CACHE_TIME = datetime.datetime.now()
         
-        Log.d("AdRide", f"🌤️ Clima real obtenido: {clima['temperatura']}°C - {clima['condicion']}")
+        print(f"🌤️ [AdRide] Clima real obtenido: {clima['temperatura']}°C - {clima['condicion']}")
         
         return jsonify(clima), 200
         
-    except Exception as e:
-        Log.e("AdRide", f"❌ Error en API clima: {e}")
-        # ✅ Fallback a datos estáticos si algo falla
+    except requests.exceptions.InvalidAPIKey as e:
+        print(f"❌ [AdRide] API Key inválida: {e}")
+        return jsonify({"error": "API Key inválida"}), 401
+    except requests.exceptions.Timeout as e:
+        print(f"❌ [AdRide] Timeout de API: {e}")
         return jsonify(get_clima_estatico()), 200
+    except requests.exceptions.RequestException as e:
+        print(f"❌ [AdRide] Error de conexión: {e}")
+        return jsonify(get_clima_estatico()), 200
+    except Exception as e:
+        print(f"❌ [AdRide] Error inesperado: {type(e).__name__} - {e}")
+        import traceback
+        print(f"📋 [AdRide] Traceback: {traceback.format_exc()}")
+        return jsonify({"error": "Error interno del servidor"}), 500
 
 
 # ============================================
@@ -355,6 +368,7 @@ def get_clima_estatico():
         "viento_km": 18,
         "actualizado": datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
     }
+    
 
 # ============================================
 # ✅ SUBIR DOCUMENTO
