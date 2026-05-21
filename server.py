@@ -11,7 +11,7 @@ OPENWEATHER_API_KEY = os.environ.get("OPENWEATHER_API_KEY", "")
 OPENWEATHER_CITY = "Iquique"
 CLIMA_CACHE = None  # Cache para no llamar a la API en cada petición
 CLIMA_CACHE_TIME = None
-CACHE_DURATION_MIN = 30  # Cache por 30 minutos
+CACHE_DURATION_MIN = 5  # Cache por 30 minutos
 
 app = Flask(__name__, static_folder='.')
 CORS(app)
