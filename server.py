@@ -3,7 +3,15 @@ from flask_cors import CORS
 import json
 import os
 import datetime
+import requests
 from werkzeug.utils import secure_filename
+
+# ✅ CONFIGURACIÓN DE API DE CLIMA
+OPENWEATHER_API_KEY = os.environ.get("OPENWEATHER_API_KEY", "")
+OPENWEATHER_CITY = "Iquique"
+CLIMA_CACHE = None  # Cache para no llamar a la API en cada petición
+CLIMA_CACHE_TIME = None
+CACHE_DURATION_MIN = 30  # Cache por 30 minutos
 
 app = Flask(__name__, static_folder='.')
 CORS(app)
@@ -231,30 +239,123 @@ def heartbeat():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # ============================================
-# ✅ CLIMA IQUIQUE - Para pasajeros
+# ✅ CLIMA IQUIQUE - CON API REAL (OpenWeatherMap)
 # ============================================
 @app.route('/api/clima', methods=['GET'])
 def get_clima():
-    """Retorna clima actual de Iquique para mostrar en tablets"""
+    """Retorna clima actual de Iquique desde API real con fallback"""
+    global CLIMA_CACHE, CLIMA_CACHE_TIME
+    
     try:
-        # ✅ CLIMA ESTÁTICO (puedes editarlo manualmente)
-        # Después integramos API de OpenWeatherMap
+        # ✅ Verificar si hay cache válido (30 min)
+        if CLIMA_CACHE and CLIMA_CACHE_TIME:
+            tiempo_transcurrido = datetime.datetime.now() - CLIMA_CACHE_TIME
+            if tiempo_transcurrido.total_seconds() < CACHE_DURATION_MIN * 60:
+                Log.d("AdRide", "🌤️ Usando clima en cache")
+                return jsonify(CLIMA_CACHE), 200
+        
+        # ✅ Si no hay cache o expiró, llamar a la API
+        if not OPENWEATHER_API_KEY:
+         # API Key no configurada → usar fallback
+         Log.w("AdRide", "⚠️ API Key no configurada, usando fallback")
+         return jsonify(get_clima_estatico()), 200
+        
+        # ✅ Llamar a OpenWeatherMap
+        url = f"https://api.openweathermap.org/data/2.5/weather"
+        params = {
+            "q": OPENWEATHER_CITY,
+            "appid": OPENWEATHER_API_KEY,
+            "units": "metric",  # Celsius
+            "lang": "es"  # Español
+        }
+        
+        response = requests.get(url, params=params, timeout=5)
+        
+        if response.status_code != 200:
+            Log.w("AdRide", f"⚠️ API clima falló: {response.status_code}")
+            return jsonify(get_clima_estatico()), 200
+        
+        data = response.json()
+        
+        # ✅ Mapear respuesta de la API a nuestro formato
+        weather_main = data['weather'][0]['main'].lower()
+        weather_desc = data['weather'][0]['description'].title()
+        
+        # Mapear condición a nuestros valores
+        condicion_map = {
+            'clear': 'Soleado',
+            'clouds': 'Nublado',
+            'rain': 'Lluvioso',
+            'drizzle': 'Llovizna',
+            'thunderstorm': 'Tormenta',
+            'snow': 'Nieve',
+            'mist': 'Neblina'
+        }
+        condicion = condicion_map.get(weather_main, 'Soleado')
+        
+        # Mapear ícono
+        icono_map = {
+            'clear': 'soleado',
+            'clouds': 'nublado',
+            'rain': 'lluvioso',
+            'drizzle': 'lluvioso',
+            'thunderstorm': 'lluvioso',
+            'snow': 'nublado',
+            'mist': 'nublado'
+        }
+        icono = icono_map.get(weather_main, 'soleado')
+        
+        # Calcular UV (aproximado según hora del día)
+        hora_actual = datetime.datetime.now().hour
+        if 10 <= hora_actual <= 16:
+            uv = "Muy Alto"
+        elif 8 <= hora_actual <= 10 or 16 <= hora_actual <= 18:
+            uv = "Alto"
+        else:
+            uv = "Moderado"
+        
+        # ✅ Construir respuesta
         clima = {
-            "ciudad": "Iquique",
-            "temperatura": 24,
-            "condicion": "Soleado",
-            "icono": "soleado",  # soleado, nublado, parcialmente_nublado
-            "uv": "Alto",
-            "humedad": 65,
-            "viento_km": 18,
+            "ciudad": data['name'],
+            "temperatura": int(data['main']['temp']),
+            "condicion": condicion,
+            "icono": icono,
+            "uv": uv,
+            "humedad": data['main']['humidity'],
+            "viento_km": int(data['wind']['speed'] * 3.6),  # m/s a km/h
             "actualizado": datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
         }
+        
+        # ✅ Guardar en cache
+        CLIMA_CACHE = clima
+        CLIMA_CACHE_TIME = datetime.datetime.now()
+        
+        Log.d("AdRide", f"🌤️ Clima real obtenido: {clima['temperatura']}°C - {clima['condicion']}")
         
         return jsonify(clima), 200
         
     except Exception as e:
-        print(f"❌ Error en clima: {e}")
-        return jsonify({'error': str(e)}), 500
+        Log.e("AdRide", f"❌ Error en API clima: {e}")
+        # ✅ Fallback a datos estáticos si algo falla
+        return jsonify(get_clima_estatico()), 200
+
+
+# ============================================
+# ✅ CLIMA ESTÁTICO (FALLBACK)
+# ============================================
+def get_clima_estatico():
+    """Retorna clima estático como fallback si la API falla"""
+    return {
+        "ciudad": "Iquique",
+        "temperatura": 24,
+        "condicion": "Soleado",
+        "icono": "soleado",
+        "uv": "Alto",
+        "humedad": 65,
+        "viento_km": 18,
+        "actualizado": datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
+    }
+
 # ============================================
 # ✅ SUBIR DOCUMENTO
 # ============================================
