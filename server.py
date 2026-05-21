@@ -283,30 +283,115 @@ def get_clima():
         data = response.json()
         
         # ✅ Mapear respuesta de la API a nuestro formato
-        weather_main = data['weather'][0]['main'].lower()
-        weather_desc = data['weather'][0]['description'].title()
-        
-        condicion_map = {
-            'clear': 'Soleado',
-            'clouds': 'Nublado',
-            'rain': 'Lluvioso',
-            'drizzle': 'Llovizna',
-            'thunderstorm': 'Tormenta',
-            'snow': 'Nieve',
-            'mist': 'Neblina'
-        }
-        condicion = condicion_map.get(weather_main, 'Soleado')
-        
-        icono_map = {
-            'clear': 'soleado',
-            'clouds': 'nublado',
-            'rain': 'lluvioso',
-            'drizzle': 'lluvioso',
-            'thunderstorm': 'lluvioso',
-            'snow': 'nublado',
-            'mist': 'nublado'
-        }
-        icono = icono_map.get(weather_main, 'soleado')
+        # ============================================
+# ✅ MAPEO DE CONDICIONES DE CLIMA (MEJORADO)
+# ============================================
+weather_main = data['weather'][0]['main'].lower()
+weather_desc = data['weather'][0]['description'].lower()
+
+condicion_map = {
+    'clear': 'Soleado',
+    'clouds': 'Nublado',
+    'rain': 'Lluvioso',
+    'drizzle': 'Llovizna',
+    'thunderstorm': 'Tormenta',
+    'snow': 'Nieve',
+    'mist': 'Neblina',
+    'smoke': 'Humo',
+    'haze': 'Neblina',
+    'dust': 'Polvo',
+    'fog': 'Niebla'
+}
+
+# Mapeo detallado según descripción
+if weather_main == 'clear':
+    condicion = 'Soleado'
+    icono = 'soleado'
+    
+elif weather_main == 'clouds':
+    if 'overcast' in weather_desc:
+        condicion = 'Muy Nublado'
+        icono = 'nublado'
+    elif 'broken' in weather_desc:
+        condicion = 'Parcialmente Nublado'
+        icono = 'parcialmente_nublado'
+    elif 'scattered' in weather_desc:
+        condicion = 'Algo Nublado'
+        icono = 'parcialmente_nublado'
+    elif 'few' in weather_desc:
+        condicion = 'Pocas Nubes'
+        icono = 'parcialmente_nublado'
+    else:
+        condicion = 'Nublado'
+        icono = 'nublado'
+    
+elif weather_main == 'rain':
+    if 'heavy' in weather_desc or 'torrential' in weather_desc:
+        condicion = 'Lluvia Fuerte'
+        icono = 'lluvioso'
+    elif 'light' in weather_desc:
+        condicion = 'Llovizna'
+        icono = 'lluvioso'
+    else:
+        condicion = 'Lluvioso'
+        icono = 'lluvioso'
+    
+elif weather_main == 'drizzle':
+    condicion = 'Llovizna'
+    icono = 'lluvioso'
+    
+elif weather_main == 'thunderstorm':
+    condicion = 'Tormenta'
+    icono = 'lluvioso'
+    
+elif weather_main in ['mist', 'haze', 'fog']:
+    condicion = 'Neblina'
+    icono = 'nublado'
+    
+elif weather_main == 'smoke':
+    condicion = 'Humo'
+    icono = 'nublado'
+    
+elif weather_main == 'dust':
+    condicion = 'Polvo'
+    icono = 'nublado'
+    
+elif weather_main == 'snow':
+    condicion = 'Nieve'
+    icono = 'nublado'
+    
+else:
+    condicion = condicion_map.get(weather_main, 'Soleado')
+    icono = 'soleado'
+
+# Calcular UV aproximado según hora del día
+hora_actual = datetime.datetime.now().hour
+if 10 <= hora_actual <= 16:
+    uv = "Muy Alto"
+elif 8 <= hora_actual <= 10 or 16 <= hora_actual <= 18:
+    uv = "Alto"
+else:
+    uv = "Moderado"
+
+# ✅ Construir respuesta
+clima = {
+    "ciudad": data['name'],
+    "temperatura": int(data['main']['temp']),
+    "condicion": condicion,
+    "icono": icono,
+    "uv": uv,
+    "humedad": data['main']['humidity'],
+    "viento_km": int(data['wind']['speed'] * 3.6),
+    "actualizado": datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
+}
+
+# ✅ Guardar en cache
+CLIMA_CACHE = clima
+CLIMA_CACHE_TIME = datetime.datetime.now()
+
+print(f"🌤️ [AdRide] Clima real obtenido: {clima['temperatura']}°C - {clima['condicion']}")
+
+return jsonify(clima), 200
         
         # Calcular UV aproximado según hora del día
         hora_actual = datetime.datetime.now().hour
@@ -329,9 +414,7 @@ def get_clima():
             "actualizado": datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
         }
         
-        # ✅ Guardar en cache
-        CLIMA_CACHE = clima
-        CLIMA_CACHE_TIME = datetime.datetime.now()
+        
         
         print(f"🌤️ [AdRide] Clima real obtenido: {clima['temperatura']}°C - {clima['condicion']}")
         
