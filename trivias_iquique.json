@@ -1,0 +1,64 @@
+{
+  "trivias": [
+    {
+      "pregunta": "¿En qué año se fundó Iquique?",
+      "opciones": ["A) 1837", "B) 1866", "C) 1900", "D) 1925"],
+      "respuesta": "B) 1866",
+      "dato_curioso": "Iquique fue fundada el 25 de noviembre de 1866."
+    },
+    {
+      "pregunta": "¿Qué batalla se conmemora el 21 de mayo?",
+      "opciones": ["A) Concepción", "B) Iquique", "C) Tacna", "D) Arica"],
+      "respuesta": "B) Iquique",
+      "dato_curioso": "El Combate Naval de Iquique ocurrió el 21 de mayo de 1879."
+    },
+    {
+      "pregunta": "¿Cuál es la playa más famosa de Iquique?",
+      "opciones": ["A) Brava", "B) Cavancha", "C) Huayquique", "D) Lobitos"],
+      "respuesta": "B) Cavancha",
+      "dato_curioso": "Cavancha es conocida por sus olas perfectas para el surf."
+    },
+    {
+      "pregunta": "¿Qué museo naval está en el puerto de Iquique?",
+      "opciones": ["A) Museo Regional", "B) Corbeta Esmeralda", "C) Museo del Mar", "D) Museo Ferroviario"],
+      "respuesta": "B) Corbeta Esmeralda",
+      "dato_curioso": "La Corbeta Esmeralda es un museo flotante abierto al público."
+    },
+    {
+      "pregunta": "¿Qué desierto rodea a Iquique?",
+      "opciones": ["A) Sonora", "B) Atacama", "C) Mohave", "D) Sahara"],
+      "respuesta": "B) Atacama",
+      "dato_curioso": "El Desierto de Atacama es el más árido del mundo."
+    },
+    {
+      "pregunta": "¿Qué festival se celebra en febrero?",
+      "opciones": ["A) Viña del Mar", "B) Carnaval de Iquique", "C) Lollapalooza", "D) Pukllay"],
+      "respuesta": "B) Carnaval de Iquique",
+      "dato_curioso": "El Carnaval de Iquique es uno de los más grandes del norte de Chile."
+    },
+    {
+      "pregunta": "¿Qué plato típico es de la zona?",
+      "opciones": ["A) Pastel de choclo", "B) Caldillo de congrio", "C) Empanadas", "D) Completo"],
+      "respuesta": "B) Caldillo de congrio",
+      "dato_curioso": "Inmortalizado por Pablo Neruda en su 'Oda al Caldillo de Congrio'."
+    },
+    {
+      "pregunta": "¿A qué temperatura promedio está Iquique?",
+      "opciones": ["A) 15°C", "B) 22°C", "C) 28°C", "D) 35°C"],
+      "respuesta": "B) 22°C",
+      "dato_curioso": "Iquique tiene un clima desértico con temperaturas estables todo el año."
+    },
+    {
+      "pregunta": "¿Qué deporte acuático es popular en Iquique?",
+      "opciones": ["A) Esquí acuático", "B) Surf", "C) Buceo", "D) Kayak"],
+      "respuesta": "B) Surf",
+      "dato_curioso": "Iquique es sede del campeonato mundial de surf desde 2010."
+    },
+    {
+      "pregunta": "¿Qué significa 'Iquique' en aymara?",
+      "opciones": ["A) Ciudad del sol", "B) Puerto de descanso", "C) Tierra de arenas", "D) No se sabe con certeza"],
+      "respuesta": "D) No se sabe con certeza",
+      "dato_curioso": "El origen del nombre Iquique es debatido entre historiadores."
+    }
+  ]
+}
