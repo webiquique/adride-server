@@ -832,30 +832,27 @@ def calcular_pago_conductor(conductor_id):
 
 
 # ✅ LISTADO DE PAGOS PARA TODOS LOS CONDUCTORES (CORREGIDO CON TRY EXTERNO)
+# ✅ LISTADO DE PAGOS PARA TODOS LOS CONDUCTORES (CORREGIDO)
 @app.route('/api/payments/calculate', methods=['GET'])
 def calcular_pagos_todos():
-    """
-    Retorna cálculo de pagos para todos los conductores activos
-    Incluye km_acumulados_hoy para cada uno
-    """
-    try:  # ← ✅ AGREGADO: Try externo para TODA la función
+    """Retorna cálculo de pagos para todos los conductores activos"""
+    try:
         detalles = []
         payout_total = 0
         revenue_total = 0
         
         for conductor_id in tablets_data.keys():
             try:
-                # ✅ Reutilizar la lógica del endpoint individual
                 data = tablets_data[conductor_id]
                 total_impressions = int(data.get('total_impressions', 0) or 0)
-                revenue_generado = total_impressions * 30
+                revenue_generado = total_impressions * config['valor_por_impresion']
                 
                 # 📍 KM ACUMULADOS HOY
                 fecha_hoy = datetime.datetime.now().strftime('%Y-%m-%d')
                 km_acumulados_hoy = km_reports.get(conductor_id, {}).get(fecha_hoy, 0.0)
                 
-                # 🧮 Cálculo de payout
-                pago_base = revenue_generado * config['porcentaje_base']
+                # 🧮 Cálculo de payout (CLAVES CORREGIDAS)
+                pago_base = revenue_generado * config['porcentaje_base_conductor']  # ← CORREGIDO
                 
                 bono_km = revenue_generado * config['bono_km_porcentaje'] if km_acumulados_hoy >= config['km_minimos_bono'] else 0
                 bono_impresiones = revenue_generado * config['bono_impresiones_porcentaje'] if total_impressions >= config['impresiones_minimas_bono'] else 0
@@ -879,10 +876,9 @@ def calcular_pagos_todos():
                 pago_bono = min(bono_km + bono_impresiones + bono_documentos + bono_conectividad, 
                                revenue_generado * config['porcentaje_bono_maximo'])
                 
-                # ✅ Busca en calcular_pagos_todos():
-                pago_total_conductor = min(pago_base + pago_bono, revenue_generado * config['porcentaje_maximo_total'])  # ← Corregido
+                # ✅ CLAVE CORREGIDA:
+                pago_total_conductor = min(pago_base + pago_bono, revenue_generado * config['porcentaje_maximo_total'])
                 
-                # ✅ Agregar a lista CON KM
                 detalles.append({
                     'conductor_id': conductor_id,
                     'revenue_generado': round(revenue_generado, 2),
@@ -914,7 +910,10 @@ def calcular_pagos_todos():
             'fecha_calculo': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         }), 200
         
-    except Exception as e:  # ← ✅ Ahora este except tiene su try correspondiente
+    except KeyError as e:
+        print(f"❌ KeyError en pagos: {e}")
+        return jsonify({'error': f'Clave de config no encontrada: {e}'}), 500
+    except Exception as e:
         print(f"❌ Error calculando pagos: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
         
