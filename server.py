@@ -754,13 +754,11 @@ def km_report():
 
 
 # ✅ CÁLCULO DE PAGOS POR CONDUCTOR (CORREGIDO CON TRY/EXCEPT)
+# ✅ CÁLCULO DE PAGOS POR CONDUCTOR (VERSIÓN FINAL CORREGIDA)
 @app.route('/api/payments/calculate/<conductor_id>', methods=['GET'])
 def calcular_pago_conductor(conductor_id):
-    """
-    Calcula payout para un conductor específico usando fórmula 25% + 5%
-    Incluye km_acumulados_hoy desde km_reports
-    """
-    try:  # ← ✅ AGREGADO: Abre bloque try
+    """Calcula payout para un conductor específico usando fórmula 25% + 5%"""
+    try:
         if conductor_id not in tablets_data:
             return jsonify({'error': 'Conductor no encontrado'}), 404
         
@@ -768,43 +766,41 @@ def calcular_pago_conductor(conductor_id):
         
         # 📊 Métricas base
         total_impressions = int(data.get('total_impressions', 0) or 0)
-        revenue_generado = total_impressions * 30
+        revenue_generado = total_impressions * config['valor_por_impresion']
         
         # 📍 KM ACUMULADOS HOY
         fecha_hoy = datetime.datetime.now().strftime('%Y-%m-%d')
         km_acumulados_hoy = km_reports.get(conductor_id, {}).get(fecha_hoy, 0.0)
         
-        # 🧮 Fórmula 25% + 5%
+        # 🧮 Fórmula 25% + 5% (CLAVES CORREGIDAS)
         pago_base = revenue_generado * config['porcentaje_base_conductor']
         
         # 🎁 Calcular bonos
-        # 🎁 Calcular bonos
-bono_km = revenue_generado * config['bono_km_porcentaje'] if km_acumulados_hoy >= config['km_minimos_bono'] else 0
-bono_impresiones = revenue_generado * config['bono_impresiones_porcentaje'] if total_impressions >= config['impresiones_minimas_bono'] else 0
-
-bono_documentos = 0
-if conductor_id in documentos_conductores:
-    docs = documentos_conductores[conductor_id]
-    if docs and all(doc.get('estado') == 'aprobado' for doc in docs.values()):
-        bono_documentos = revenue_generado * config['bono_documentos_aprobados']
-
-bono_conectividad = 0
-last_seen = data.get('last_seen', 0)
-if last_seen:
-    try:
-        ahora = datetime.datetime.now().timestamp()
-        if (ahora - float(last_seen)) / 3600 < 2:
-            bono_conectividad = revenue_generado * config['bono_conectividad_estable']
-    except:
-        pass
-
-pago_bono = min(bono_km + bono_impresiones + bono_documentos + bono_conectividad, 
-               revenue_generado * config['porcentaje_bono_maximo'])
-
-# ✅ LÍNEA CORREGIDA (porcentaje_maximo → porcentaje_maximo_total):
-pago_total = min(pago_base + pago_bono, revenue_generado * config['porcentaje_maximo_total'])
-
-porcentaje_real = (pago_total / revenue_generado * 100) if revenue_generado > 0 else 0
+        bono_km = revenue_generado * config['bono_km_porcentaje'] if km_acumulados_hoy >= config['km_minimos_bono'] else 0
+        bono_impresiones = revenue_generado * config['bono_impresiones_porcentaje'] if total_impressions >= config['impresiones_minimas_bono'] else 0
+        
+        bono_documentos = 0
+        if conductor_id in documentos_conductores:
+            docs = documentos_conductores[conductor_id]
+            if docs and all(doc.get('estado') == 'aprobado' for doc in docs.values()):
+                bono_documentos = revenue_generado * config['bono_documentos_aprobados']
+        
+        bono_conectividad = 0
+        last_seen = data.get('last_seen', 0)
+        if last_seen:
+            try:
+                ahora = datetime.datetime.now().timestamp()
+                if (ahora - float(last_seen)) / 3600 < 2:
+                    bono_conectividad = revenue_generado * config['bono_conectividad_estable']
+            except:
+                pass
+        
+        pago_bono = min(bono_km + bono_impresiones + bono_documentos + bono_conectividad, 
+                       revenue_generado * config['porcentaje_bono_maximo'])
+        
+        # ✅ CLAVE CORREGIDA: porcentaje_maximo_total
+        pago_total = min(pago_base + pago_bono, revenue_generado * config['porcentaje_maximo_total'])
+        porcentaje_real = (pago_total / revenue_generado * 100) if revenue_generado > 0 else 0
         
         return jsonify({
             'conductor_id': conductor_id,
@@ -823,10 +819,14 @@ porcentaje_real = (pago_total / revenue_generado * 100) if revenue_generado > 0 
             'porcentaje_real': f"{porcentaje_real:.1f}%"
         }), 200
         
-    except Exception as e:  # ← ✅ Ahora este except tiene su try correspondiente
+    except KeyError as e:
+        print(f"❌ KeyError en pago: {e} - Clave de config no encontrada")
+        return jsonify({'error': f'Clave de configuración no encontrada: {e}'}), 500
+    except Exception as e:
         print(f"❌ Error calculando pago para {conductor_id}: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'status': 'error', 'message': str(e)}), 500
-
 
 
 
