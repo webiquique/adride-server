@@ -33,3 +33,11 @@ uploads/
 # ✅ OS
 .DS_Store
 Thumbs.db
+
+# 🔐 Secrets y configuración local
+local.properties
+*.jks
+*.keystore
+secrets/
+.env
+
