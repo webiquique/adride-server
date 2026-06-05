@@ -212,7 +212,7 @@ def heartbeat():
             "android_version": data.get('android_version', 'Unknown'),
             "app_version": data.get('app_version', '1.0'),
             "timestamp": data.get('timestamp', str(datetime.datetime.now().timestamp())),
-            "total_impressions": data.get('total_impressions', '0'),
+            "total_impressions": data.get('impresiones', '0'),
             "uptime_hours": data.get('uptime_hours', '0'),
             "network_type": data.get('network_type', 'unknown'),
             "is_charging": data.get('is_charging', 'false'),
@@ -225,7 +225,7 @@ def heartbeat():
         
         guardar_datos()  # ✅ Guarda tablets_data Y km_reports
         
-        print(f"❤️ Heartbeat recibido: {device_id[:12]}... | Impresiones: {data.get('total_impressions', 0)} | Km acumulados hoy: {km_reports[device_id][fecha_hoy]}")
+        print(f"❤️ Heartbeat recibido: {device_id[:12]}... | Impresiones: {data.get('impresiones', 0)} | Km acumulados hoy: {km_reports[device_id][fecha_hoy]}")
         
         return jsonify({
             "status": "ok",
