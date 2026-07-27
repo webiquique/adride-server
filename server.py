@@ -5,6 +5,13 @@ import os
 import datetime
 import requests
 from werkzeug.utils import secure_filename
+import time
+
+os.environ['TZ'] = 'America/Santiago'
+try:
+    time.tzset()
+except AttributeError:
+    pass
 
 # ✅ CONFIGURACIÓN DE API DE CLIMA
 OPENWEATHER_API_KEY = os.environ.get("OPENWEATHER_API_KEY", "")
