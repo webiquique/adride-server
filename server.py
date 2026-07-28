@@ -6,15 +6,12 @@ import datetime
 import requests
 from werkzeug.utils import secure_filename
 import time
-import base64
-
 
 os.environ['TZ'] = 'America/Santiago'
 try:
     time.tzset()
 except AttributeError:
     pass
-
 
 # ✅ CONFIGURACIÓN DE API DE CLIMA
 OPENWEATHER_API_KEY = os.environ.get("OPENWEATHER_API_KEY", "")
@@ -23,10 +20,8 @@ CLIMA_CACHE = None
 CLIMA_CACHE_TIME = None
 CACHE_DURATION_MIN = 5
 
-
 app = Flask(__name__, static_folder='.')
 CORS(app)
-
 
 # ✅ CONFIGURACIÓN PARA SUBIDA DE ARCHIVOS
 UPLOAD_FOLDER = 'uploads/documentos'
@@ -35,20 +30,17 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png'}
 
-
 # Archivos de datos
 DATA_FILE = 'tablets_data.json'
 KM_FILE = 'km_reports.json'
 PAGOS_FILE = 'pagos_conductores.json'
 DOCUMENTOS_FILE = 'documentos_conductores.json'
 
-
 # Variables globales
 tablets_data = {}
 km_reports = {}
 pagos_conductores = {}
 documentos_conductores = {}
-
 
 # ✅ CONFIGURACIÓN DE NEGOCIO ADRIDE - MODELO 25% + 5% BONO
 config = {
@@ -64,7 +56,6 @@ config = {
     "bono_impresiones_porcentaje": 0.015
 }
 
-
 config["tarifa_km"] = 15
 config["tarifa_hora_activa"] = 500
 config["presupuesto_total_mensual"] = 250000
@@ -76,10 +67,8 @@ config["bono_horas_pico_porcentaje"] = 0.20
 fondo_conductores_mensual = config["presupuesto_total_mensual"] * config["porcentaje_para_conductores"]
 fondo_conductores_diario = fondo_conductores_mensual / config["dias_mes"]
 
-
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
 
 def cargar_datos():
     global tablets_data, km_reports, pagos_conductores, documentos_conductores
@@ -111,7 +100,6 @@ def cargar_datos():
         pagos_conductores = {}
         documentos_conductores = {}
 
-
 def guardar_datos():
     try:
         with open(DATA_FILE, 'w', encoding='utf-8') as f:
@@ -124,7 +112,6 @@ def guardar_datos():
             json.dump(documentos_conductores, f, indent=2, ensure_ascii=False)
     except Exception as e:
         print(f"❌ Error guardando datos: {e}")
-
 
 def calcular_bono_desempeno(conductor_id, data):
     bono = 0.0
@@ -151,16 +138,13 @@ def calcular_bono_desempeno(conductor_id, data):
             pass
     return min(bono, config["porcentaje_bono_maximo"])
 
-
 @app.route('/')
 def index():
     return send_from_directory('.', 'dashboard.html')
 
-
 @app.route('/favicon.ico')
 def favicon():
     return '', 204
-
 
 @app.route('/health', methods=['GET'])
 def health():
@@ -170,7 +154,6 @@ def health():
         "tablets_count": len(tablets_data),
         "timestamp": datetime.datetime.now().isoformat()
     }), 200
-
 
 @app.route('/api/heartbeat', methods=['POST'])
 def heartbeat():
@@ -217,7 +200,6 @@ def heartbeat():
     except Exception as e:
         print(f"❌ Error en heartbeat: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
-
 
 # ============================================
 # ✅ CLIMA IQUIQUE - CON API REAL
@@ -303,7 +285,6 @@ def get_clima():
         print(f"❌ [AdRide] Error clima: {e}")
         return jsonify(get_clima_estatico()), 200
 
-
 def get_clima_estatico():
     return {
         "ciudad": "Iquique", "temperatura": 24, "condicion": "Soleado",
@@ -311,9 +292,8 @@ def get_clima_estatico():
         "actualizado": datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
     }
 
-
 # ============================================
-# ✅ SUBIR DOCUMENTO (base64 en JSON)
+# ✅ SUBIR DOCUMENTO (FILESYSTEM)
 # ============================================
 @app.route('/api/documentos/subir', methods=['POST'])
 def subir_documento():
@@ -330,27 +310,25 @@ def subir_documento():
             return jsonify({'status': 'error', 'message': 'Faltan datos'}), 400
         if foto.filename == '' or not allowed_file(foto.filename):
             return jsonify({'status': 'error', 'message': 'Archivo inválido'}), 400
-        foto_bytes = foto.read()
-        foto_base64 = base64.b64encode(foto_bytes).decode('utf-8')
-        foto_mime = foto.content_type or 'image/jpeg'
+        filename = f"{conductor_id}_{tipo_documento}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        foto.save(filepath)
         if conductor_id not in documentos_conductores:
             documentos_conductores[conductor_id] = {}
         documentos_conductores[conductor_id][tipo_documento] = {
             'tipo_documento': tipo_documento,
-            'foto_base64': foto_base64,
-            'foto_mime': foto_mime,
+            'foto_url': f'/uploads/documentos/{filename}',
             'estado': 'pendiente_validacion',
             'fecha_subida': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             'comentario_admin': '',
             'fecha_validacion': ''
         }
         guardar_datos()
-        print(f"📄 Documento subido (base64): {conductor_id[:12]}... - {tipo_documento} ({len(foto_bytes)} bytes)")
+        print(f"📄 Documento subido: {conductor_id[:12]}... - {tipo_documento} -> {filename}")
         return jsonify({'status': 'ok', 'message': 'Documento subido', 'tipo_documento': tipo_documento, 'estado': 'pendiente_validacion'}), 200
     except Exception as e:
         print(f"❌ Error subiendo documento: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
-
 
 # ============================================
 # ✅ VER ESTADO DE DOCUMENTOS
@@ -363,7 +341,6 @@ def ver_estado_documentos(conductor_id):
     except Exception as e:
         print(f"❌ Error verificando documentos: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
-
 
 # ============================================
 # ✅ GUARDAR DATOS DE PAGO
@@ -394,7 +371,6 @@ def guardar_pago():
         print(f"❌ Error guardando pago: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-
 # ============================================
 # ✅ VER DATOS DE PAGO
 # ============================================
@@ -409,7 +385,6 @@ def ver_pago(conductor_id):
     except Exception as e:
         print(f"❌ Error verificando pago: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
-
 
 # ============================================
 # ✅ ADMIN - VALIDAR DOCUMENTO
@@ -439,7 +414,6 @@ def validar_documento(conductor_id, tipo_documento):
         print(f"❌ Error validando documento: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-
 # ============================================
 # ✅ ADMIN - LISTAR DOCUMENTOS PENDIENTES
 # ============================================
@@ -454,8 +428,7 @@ def listar_documentos_pendientes():
                         'conductor_id': conductor_id,
                         'conductor_id_corto': conductor_id[:12] + '...',
                         'tipo_documento': tipo_documento,
-                        'foto_base64': doc_data.get('foto_base64', ''),
-                        'foto_mime': doc_data.get('foto_mime', 'image/jpeg'),
+                        'foto_url': doc_data.get('foto_url', ''),
                         'fecha_subida': doc_data.get('fecha_subida', '')
                     })
         return jsonify({'status': 'ok', 'pendientes': pendientes, 'total': len(pendientes)}), 200
@@ -463,27 +436,19 @@ def listar_documentos_pendientes():
         print(f"❌ Error listando pendientes: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-
 # ============================================
-# ✅ SERVIR FOTO DOCUMENTO DESDE BASE64
+# ✅ SERVIR ARCHIVOS SUBIDOS
 # ============================================
-@app.route('/api/documentos/foto/<conductor_id>/<tipo_documento>', methods=['GET'])
-def servir_foto_documento(conductor_id, tipo_documento):
+@app.route('/uploads/documentos/<filename>', methods=['GET'])
+def servir_documento(filename):
     try:
-        doc = documentos_conductores.get(conductor_id, {}).get(tipo_documento)
-        if not doc or not doc.get('foto_base64'):
-            return jsonify({'error': 'Documento no encontrado'}), 404
-        foto_bytes = base64.b64decode(doc['foto_base64'])
-        mime = doc.get('foto_mime', 'image/jpeg')
-        return app.response_class(response=foto_bytes, status=200, mimetype=mime)
+        return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
+        return jsonify({'error': str(e)}), 404
 
 @app.route('/api/tablets', methods=['GET'])
 def get_tablets():
     return jsonify({"count": len(tablets_data), "tablets": tablets_data}), 200
-
 
 @app.route('/api/stats', methods=['GET'])
 def get_stats():
@@ -501,7 +466,6 @@ def get_stats():
     except Exception as e:
         print(f"❌ Error en stats: {e}")
         return jsonify({'error': str(e)}), 500
-
 
 @app.route('/api/km-report', methods=['POST'])
 def km_report():
@@ -523,7 +487,6 @@ def km_report():
     except Exception as e:
         print(f"❌ Error en km-report: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
-
 
 # ============================================
 # ✅ CÁLCULO DE PAGOS 25% + 5%
@@ -572,7 +535,6 @@ def calcular_pago_conductor(conductor_id):
     except Exception as e:
         print(f"❌ Error calculando pago: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
-
 
 @app.route('/api/payments/calculate', methods=['GET'])
 def calcular_pagos_todos():
@@ -636,7 +598,6 @@ def calcular_pagos_todos():
         print(f"❌ Error calculando pagos: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-
 # ============================================
 # ✅ LEGACY: CALCULAR PAGOS (FÓRMULA ANTIGUA)
 # ============================================
@@ -682,7 +643,6 @@ def calculate_payments_legacy():
         print(f"❌ Error calculando pagos legacy: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-
 @app.route('/api/payments/export/csv', methods=['GET'])
 def export_csv():
     try:
@@ -701,9 +661,7 @@ def export_csv():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-
 cargar_datos()
-
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
