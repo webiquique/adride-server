@@ -430,7 +430,7 @@
                 let html = `<table><thead><tr><th>Conductor</th><th>Documento</th><th>Fecha</th><th>Vista</th><th>Acciones</th></tr></thead><tbody>`;
 
                 data.pendientes.forEach(doc => {
-                    const imageUrl = `${API_BASE}${doc.foto_url}`;
+                    const imageUrl = `${API_BASE}/api/documentos/foto/${doc.conductor_id}/${doc.tipo_documento}`;
                     html += `<tr>
                         <td>${escapeHtml(doc.conductor_id_corto || '')}</td>
                         <td>${escapeHtml(doc.tipo_documento || '')}</td>
