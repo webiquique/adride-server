@@ -7,17 +7,14 @@
     <meta name="description" content="Publicidad digital en tablets Uber que llega a miles de pasajeros en Iquique.">
     <link rel="stylesheet" href="styles.css">
     <!-- Font Awesome para íconos -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cloudflare.com">
 </head>
 <body>
     <!-- Navegación -->
     <nav class="navbar">
         <div class="container">
             <div class="logo">
-                <!-- Si tienes logo, descomenta esto: -->
                 <img src="/adride-server/logoadridetres.svg" alt="AdRide Logo" height="70"> 
-                <!--<i class="fas fa-car-side"></i>-->
-                <!--<span>AdRide</span>-->
             </div>
             <ul class="nav-links">
                 <li><a href="#inicio">Inicio</a></li>
@@ -156,6 +153,7 @@
         </div>
     </section>
 
+    <!-- Contacto -->
     <section id="contacto" class="section section-alt">
         <div class="container">
             <h2 class="section-title">Contáctanos</h2>
@@ -179,9 +177,8 @@
                     </div>
                 </div>
 
-                <!-- FORMULARIO DE FORMSPREE CON TU ENDPOINT REAL -->
                 <div class="contact-form">
-                    <form action="https://formspree.io/f/mjgnzryl" method="POST">
+                    <form action="https://formspree.io" method="POST">
                         <div class="form-group">
                             <label for="nombre">Nombre Completo:</label>
                             <input type="text" id="nombre" name="nombre" placeholder="Tu nombre" required>
@@ -209,24 +206,5 @@
 
                         <div class="form-group">
                             <label for="mensaje">Mensaje:</label>
-                            <textarea id="mensaje" name="mensaje" rows="5" placeholder="Cuéntanos sobre tu negocio o vehículo..." required></textarea>
-                        </div>
 
-                        <button type="submit" class="btn btn-primary">Enviar Mensaje</button>
-                    </form>
-                </div>
-                <!-- FIN DEL FORMULARIO -->
-
-            </div>
-        </div>
-    </section>
-
-    <!-- Footer -->
-    <footer class="footer">
-        <div class="container">
-            <p>&copy; 2024 AdRide Iquique. Todos los derechos reservados.</p>
-        </div>
-    </footer>
-</body>
-</html>
 
