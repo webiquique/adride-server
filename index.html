@@ -156,7 +156,6 @@
         </div>
     </section>
 
-    <!-- Contacto -->
     <section id="contacto" class="section section-alt">
         <div class="container">
             <h2 class="section-title">Contáctanos</h2>
@@ -165,45 +164,59 @@
                     <h3>¿Listo para empezar?</h3>
                     <p>Escríbenos y te respondemos en menos de 24 horas.</p>
                     <div class="contact-item">
-    <i class="fab fa-whatsapp"></i>
-    <a href="https://wa.me/56988465538" target="_blank" style="color: var(--text); text-decoration: none;">
-        +56 9 88465538
-    </a>
-</div>
+                        <i class="fab fa-whatsapp"></i>
+                        <a href="https://wa.me" target="_blank" style="color: var(--text); text-decoration: none;">
+                            +56 9 88465538
+                        </a>
+                    </div>
                     <div class="contact-item">
                         <i class="fas fa-envelope"></i>
-                        <span>adride.iquique@gmail.com</span>
+                        <span>adridechile@gmail.com</span>
                     </div>
                     <div class="contact-item">
                         <i class="fas fa-map-marker-alt"></i>
                         <span>Iquique, Chile</span>
                     </div>
                 </div>
-                <form class="contact-form" action="https://formspree.io/f/xzdjdlov" method="POST">
-    
-                  <!-- Campos ocultos para configuración de Formspree -->
-                  <input type="hidden" name="_subject" value="Nueva consulta desde web AdRide">
-                  <input type="hidden" name="_autoresponse" value="Gracias por contactar a AdRide Iquique. Hemos recibido tu mensaje y te responderemos en menos de 24 horas.">
-                  
-    
-                  <!-- Campo: Nombre -->
-                  <input type="text" name="nombre" placeholder="Nombre completo" required>
-                  <input type="email" name="email" placeholder="Email de contacto" required>
-                  <input type="tel" name="telefono" placeholder="Teléfono / WhatsApp">
 
-                    <select name="tipo" required>
-                      <option value="">Soy...</option>
-                      <option value="anunciante">Anunciante (quiero publicitar)</option>
-                      <option value="conductor">Conductor Uber (quiero participar)</option>
-                      <option value="otro">Otro</option>
-                    </select>
+                <!-- FORMULARIO DE FORMSPREE CON TU ENDPOINT REAL -->
+                <div class="contact-form">
+                    <form action="https://formspree.io/f/mjgnzryl" method="POST">
+                        <div class="form-group">
+                            <label for="nombre">Nombre Completo:</label>
+                            <input type="text" id="nombre" name="nombre" placeholder="Tu nombre" required>
+                        </div>
 
-                    <textarea name="mensaje" placeholder="Cuéntanos más sobre tu interés..." rows="5" required></textarea>
-    
-                    <button type="submit" class="btn btn-primary">Enviar Mensaje</button>
-                    <input type="hidden" name="_next" value="https://webiquique.github.io/adride-server/#contacto">
+                        <div class="form-group">
+                            <label for="email">Correo Electrónico:</label>
+                            <input type="email" id="email" name="email" placeholder="tu@correo.com" required>
+                        </div>
 
-             </form>
+                        <div class="form-group">
+                            <label for="telefono">Teléfono / WhatsApp:</label>
+                            <input type="tel" id="telefono" name="telefono" placeholder="+56 9 1234 5678">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="tipo_usuario">Me interesa como:</label>
+                            <select id="tipo_usuario" name="tipo_usuario" required>
+                                <option value="" disabled selected>Selecciona una opción</option>
+                                <option value="Anunciante">Quiero Anunciar mi Marca</option>
+                                <option value="Conductor">Quiero ser Conductor Partner</option>
+                                <option value="Otra Consulta">Otra Consulta</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="mensaje">Mensaje:</label>
+                            <textarea id="mensaje" name="mensaje" rows="5" placeholder="Cuéntanos sobre tu negocio o vehículo..." required></textarea>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">Enviar Mensaje</button>
+                    </form>
+                </div>
+                <!-- FIN DEL FORMULARIO -->
+
             </div>
         </div>
     </section>
