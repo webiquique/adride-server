@@ -25,6 +25,7 @@ CORS(app)
 
 # ✅ CONFIGURACIÓN PARA SUBIDA DE ARCHIVOS
 UPLOAD_FOLDER = 'uploads/documentos'
+APK_FOLDER = 'uploads/apk'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(APK_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -37,7 +38,6 @@ KM_FILE = 'km_reports.json'
 PAGOS_FILE = 'pagos_conductores.json'
 DOCUMENTOS_FILE = 'documentos_conductores.json'
 REGISTRO_FILE = 'conductores_registrados.json'
-APK_FOLDER = 'uploads/apk'
 VERSION_FILE = 'version_actual.json'
 
 # Variables globales
@@ -975,5 +975,6 @@ cargar_datos()
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+    
     
     
