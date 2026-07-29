@@ -5,9 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AdRide - Publicidad Digital en Movimiento | Iquique</title>
     <meta name="description" content="Publicidad digital en tablets Uber que llega a miles de pasajeros en Iquique.">
-    <link rel="stylesheet" href="styles.css">
-    <!-- Font Awesome para íconos -->
-    <link rel="stylesheet" href="https://cloudflare.com">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body>
     <!-- Navegación -->
@@ -163,7 +162,7 @@
                     <p>Escríbenos y te respondemos en menos de 24 horas.</p>
                     <div class="contact-item">
                         <i class="fab fa-whatsapp"></i>
-                        <a href="https://wa.me" target="_blank" style="color: var(--text); text-decoration: none;">
+                        <a href="https://wa.me/56988465538" target="_blank" style="color: var(--text); text-decoration: none;">
                             +56 9 88465538
                         </a>
                     </div>
@@ -180,6 +179,7 @@
                 <div class="contact-form">
                     <form action="https://formspree.io/f/mjgnzryl" 
                     method="POST">
+                        <input type="hidden" name="_redirect" value="https://adride.cl/gracias">
 
                         <div class="form-group">
                             <label for="nombre">Nombre Completo:</label>
@@ -208,12 +208,19 @@
 
                         <div class="form-group">
                             <label for="mensaje">Mensaje:</label>
+                            <textarea id="mensaje" name="mensaje" rows="4" placeholder="Escribe tu mensaje..."></textarea>
                         </div>
 
-                        <button type="submit">Send</button>
+                        <button type="submit" class="btn btn-primary">Enviar</button>
                     </form>
                 </div>
             </div>
         </div>
     </section>
+
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2026 AdRide - Todos los derechos reservados</p>
+        </div>
+        </footer>
 </body>
