@@ -7,6 +7,16 @@ import requests
 from werkzeug.utils import secure_filename
 import time
 
+# ✅ SUPABASE CONFIG
+SUPABASE_URL = "https://zwrbqrdeaajpdhvnovbb.supabase.co"
+SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3cmJxcmRlYWFqcGRodm5vdmJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzNDIwMTksImV4cCI6MjEwMDkxODAxOX0.UmKgD7vecvqP3ys2eeQNG58j_QGCyYjAgo3O8tCINxo"
+SUPABASE_HEADERS = {
+    "apikey": SUPABASE_ANON_KEY,
+    "Authorization": f"Bearer {SUPABASE_ANON_KEY}",
+    "Content-Type": "application/json",
+    "Prefer": "return=representation"
+}
+
 os.environ['TZ'] = 'America/Santiago'
 try:
     time.tzset()
@@ -385,7 +395,7 @@ def ver_estado_documentos(conductor_id):
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # ============================================
-# ✅ GUARDAR DATOS DE PAGO
+# ✅ GUARDAR DATOS DE PAGO (Supabase)
 # ============================================
 @app.route('/api/pago/guardar', methods=['POST'])
 def guardar_pago():
@@ -397,16 +407,40 @@ def guardar_pago():
         conductor_id = data.get('conductor_id')
         if not conductor_id:
             return jsonify({'status': 'error', 'message': 'conductor_id requerido'}), 400
-        pagos_conductores[conductor_id] = {
+
+        payload = {
+            'conductor_id': conductor_id,
             'rut': data.get('rut', ''),
             'nombre_titular': data.get('nombre_titular', ''),
             'banco': data.get('banco', ''),
             'tipo_cuenta': data.get('tipo_cuenta', ''),
             'numero_cuenta': data.get('numero_cuenta', ''),
             'email': data.get('email', ''),
-            'fecha_actualizacion': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            'fecha_actualizacion': datetime.datetime.now(datetime.timezone.utc).isoformat()
         }
+
+        # Upsert to Supabase
+        resp = requests.post(
+            f"{SUPABASE_URL}/rest/v1/pagos",
+            headers=SUPABASE_HEADERS,
+            json=payload
+        )
+
+        if resp.status_code == 409:
+            # Conflict: record exists, update instead
+            resp = requests.patch(
+                f"{SUPABASE_URL}/rest/v1/pagos?conductor_id=eq.{conductor_id}",
+                headers=SUPABASE_HEADERS,
+                json=payload
+            )
+
+        if resp.status_code >= 400 and resp.status_code != 409:
+            print(f"⚠️ Supabase error: {resp.status_code} {resp.text}")
+
+        # Fallback: keep local copy
+        pagos_conductores[conductor_id] = payload
         guardar_datos()
+
         print(f"💳 Pago configurado: {conductor_id[:12]}... - {data.get('banco', '')}")
         return jsonify({'status': 'ok', 'message': 'Datos de pago guardados'}), 200
     except Exception as e:
@@ -414,11 +448,22 @@ def guardar_pago():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # ============================================
-# ✅ VER DATOS DE PAGO
+# ✅ VER DATOS DE PAGO (Supabase)
 # ============================================
 @app.route('/api/pago/ver/<conductor_id>', methods=['GET'])
 def ver_pago(conductor_id):
     try:
+        # Try Supabase first
+        resp = requests.get(
+            f"{SUPABASE_URL}/rest/v1/pagos?conductor_id=eq.{conductor_id}&select=*",
+            headers=SUPABASE_HEADERS
+        )
+        if resp.status_code == 200:
+            rows = resp.json()
+            if rows:
+                return jsonify({'status': 'ok', 'pago': rows[0]}), 200
+
+        # Fallback to local
         pago = pagos_conductores.get(conductor_id, None)
         if pago:
             return jsonify({'status': 'ok', 'pago': pago}), 200
