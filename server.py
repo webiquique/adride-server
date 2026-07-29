@@ -812,6 +812,28 @@ def admin_registrar_conductor():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # ============================================
+# ✅ ADMIN - ELIMINAR CONDUCTOR
+# ============================================
+@app.route('/api/admin/eliminar-conductor/<conductor_id>', methods=['POST'])
+def admin_eliminar_conductor(conductor_id):
+    try:
+        api_key = request.headers.get('X-API-Key')
+        if api_key != 'adride_iquique_2024_secreto':
+            return jsonify({'status': 'error', 'message': 'API Key inválida'}), 401
+
+        if conductor_id not in conductores_registrados:
+            return jsonify({'status': 'error', 'message': 'Conductor no encontrado'}), 404
+
+        nombre = conductores_registrados[conductor_id].get('nombre', conductor_id)
+        del conductores_registrados[conductor_id]
+        guardar_datos()
+        print(f"🗑️ Conductor eliminado: {conductor_id[:12]}... - {nombre}")
+        return jsonify({'status': 'ok', 'message': f'Conductor {nombre} eliminado'}), 200
+    except Exception as e:
+        print(f"❌ Error eliminando conductor: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+# ============================================
 # ✅ ADMIN - LISTAR CONDUCTORES REGISTRADOS
 # ============================================
 @app.route('/api/admin/conductores', methods=['GET'])
@@ -975,6 +997,3 @@ cargar_datos()
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
-    
-    
-    
