@@ -671,7 +671,10 @@
                         <td>${escapeHtml(c.rut)}</td>
                         <td>${docsStatus}</td>
                         <td>${escapeHtml(c.fecha_registro || '-')}</td>
-                        <td><button class="btn-danger btn-sm" onclick="eliminarConductor('${c.conductor_id}', '${escapeHtml(c.nombre)}')">🗑️</button></td>
+                        <td style="display:flex; gap:5px;">
+                            <button class="btn-info btn-sm" onclick="verDocumentos('${c.conductor_id}', '${escapeHtml(c.nombre)}')">📄</button>
+                            <button class="btn-danger btn-sm" onclick="eliminarConductor('${c.conductor_id}', '${escapeHtml(c.nombre)}')">🗑️</button>
+                        </td>
                     </tr>`;
                 });
                 html += `</tbody></table>`;
@@ -727,6 +730,49 @@
                 } else {
                     showToast(`Error: ${data.message}`, 'error');
                 }
+            } catch (e) {
+                showToast(`Error: ${e.message}`, 'error');
+            }
+        }
+
+        async function verDocumentos(conductorId, nombre) {
+            try {
+                const res = await apiFetch(`/api/documentos/${conductorId}`);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+
+                if (!data.documentos || data.documentos.length === 0) {
+                    showToast('Sin documentos para este conductor', 'error');
+                    return;
+                }
+
+                let html = `<h3>📄 Documentos de ${escapeHtml(nombre)}</h3><div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:15px; margin-top:15px;">`;
+
+                data.documentos.forEach(doc => {
+                    const imgUrl = `${API_BASE}/api/documentos/foto/${conductorId}/${doc.tipo_documento}`;
+                    const estadoColor = doc.estado === 'aprobado' ? '#28a745' : doc.estado === 'rechazado' ? '#dc3545' : '#ff9800';
+                    const estadoLabel = doc.estado === 'aprobado' ? '✅ Aprobado' : doc.estado === 'rechazado' ? '❌ Rechazado' : '⏳ Pendiente';
+                    html += `<div style="background:rgba(255,255,255,0.05); border-radius:10px; padding:15px; border:1px solid rgba(255,255,255,0.1);">
+                        <img src="${imgUrl}" style="width:100%; height:150px; object-fit:cover; border-radius:8px; margin-bottom:10px; background:#333;" onerror="this.style.display='none'">
+                        <p style="font-weight:600; margin-bottom:5px;">${escapeHtml(doc.tipo_documento.replace(/_/g,' ').toUpperCase())}</p>
+                        <p style="color:${estadoColor}; margin-bottom:5px;">${estadoLabel}</p>
+                        <p style="color:#a0a0a0; font-size:0.85em;">${escapeHtml(doc.fecha_subida || '')}</p>
+                        ${doc.comentario_admin ? `<p style="color:#ff9800; font-size:0.85em;">📝 ${escapeHtml(doc.comentario_admin)}</p>` : ''}
+                    </div>`;
+                });
+                html += `</div>`;
+
+                document.getElementById('modal-title').textContent = `📄 Documentos`;
+                document.getElementById('modal-message').innerHTML = html;
+                document.getElementById('modal-overlay').classList.add('active');
+
+                // Close on click outside
+                document.getElementById('modal-overlay').onclick = function(e) {
+                    if (e.target === this) {
+                        this.classList.remove('active');
+                        document.getElementById('modal-message').innerHTML = '';
+                    }
+                };
             } catch (e) {
                 showToast(`Error: ${e.message}`, 'error');
             }
