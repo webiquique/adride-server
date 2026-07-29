@@ -207,6 +207,55 @@
             <p class="refresh-info">🔄 Auto-refresh: 60 segundos</p>
         </div>
 
+        <div class="card">
+            <h2>👤 Registrar Conductor</h2>
+            <p style="color: #a0a0a0; margin-bottom: 15px;">Registra un conductor para que pueda usar la aplicación.</p>
+            <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:end;">
+                <div style="flex:1; min-width:150px;">
+                    <label style="color:#a0a0a0; font-size:0.9em;">Android ID (código en app)</label>
+                    <input type="text" id="reg-id" placeholder="e.g. abc123..." style="width:100%; padding:12px; border-radius:8px; border:1px solid #444; background:#1b2838; color:#fff; margin-top:5px;">
+                </div>
+                <div style="flex:1; min-width:150px;">
+                    <label style="color:#a0a0a0; font-size:0.9em;">RUT</label>
+                    <input type="text" id="reg-rut" placeholder="12.345.678-9" style="width:100%; padding:12px; border-radius:8px; border:1px solid #444; background:#1b2838; color:#fff; margin-top:5px;">
+                </div>
+                <div style="flex:1; min-width:150px;">
+                    <label style="color:#a0a0a0; font-size:0.9em;">Nombre completo</label>
+                    <input type="text" id="reg-nombre" placeholder="Juan Pérez" style="width:100%; padding:12px; border-radius:8px; border:1px solid #444; background:#1b2838; color:#fff; margin-top:5px;">
+                </div>
+                <div>
+                    <button class="btn-success" onclick="registrarConductor()" style="padding:12px 25px;">+ Registrar</button>
+                </div>
+            </div>
+            <div id="conductores-list" style="margin-top:20px;">
+                <h3 style="margin-bottom:10px; color:#fff;">Conductores Registrados</h3>
+                <div class="loading">Cargando conductores...</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>📲 Actualización Remota APK</h2>
+            <p style="color: #a0a0a0; margin-bottom: 15px;">Sube una nueva versión de la app. Los tablets recibirán sugerencia de actualización.</p>
+            <div style="display:flex; flex-wrap:wrap; gap:15px; align-items:end;">
+                <div style="flex:1; min-width:120px;">
+                    <label style="color:#a0a0a0; font-size:0.9em;">Version Name</label>
+                    <input type="text" id="apk-version-name" placeholder="1.1.0" style="width:100%; padding:12px; border-radius:8px; border:1px solid #444; background:#1b2838; color:#fff; margin-top:5px;">
+                </div>
+                <div style="flex:1; min-width:120px;">
+                    <label style="color:#a0a0a0; font-size:0.9em;">Version Code</label>
+                    <input type="number" id="apk-version-code" placeholder="2" style="width:100%; padding:12px; border-radius:8px; border:1px solid #444; background:#1b2838; color:#fff; margin-top:5px;">
+                </div>
+                <div style="flex:2; min-width:200px;">
+                    <label style="color:#a0a0a0; font-size:0.9em;">Archivo APK</label>
+                    <input type="file" id="apk-file" accept=".apk" style="width:100%; padding:10px; border-radius:8px; border:1px solid #444; background:#1b2838; color:#fff; margin-top:5px;">
+                </div>
+                <div>
+                    <button class="btn-info" onclick="subirAPK()" style="padding:12px 25px;">📤 Subir APK</button>
+                </div>
+            </div>
+            <div id="version-info" style="margin-top:15px; color:#a0a0a0;"></div>
+        </div>
+
         <footer style="text-align: center; color: #a0a0a0; padding: 20px; margin-top: 30px;">
             <p>🚗 AdRide Iquique © 2026 | Servidor:
                 <a href="https://adride-server.onrender.com/health" target="_blank" style="color: #d228a9;">adride-server.onrender.com</a>
@@ -300,7 +349,9 @@
                 loadStats(),
                 loadPayments(),
                 loadDocumentosPendientes(),
-                cargarDatosDePago()
+                cargarDatosDePago(),
+                cargarConductores(),
+                cargarVersionInfo()
             ]);
         }
 
@@ -565,6 +616,121 @@
             }
         }
 
+        async function registrarConductor() {
+            const conductorId = document.getElementById('reg-id').value.trim();
+            const rut = document.getElementById('reg-rut').value.trim();
+            const nombre = document.getElementById('reg-nombre').value.trim();
+            if (!conductorId || !rut || !nombre) {
+                showToast('Completa todos los campos del conductor', 'error');
+                return;
+            }
+            try {
+                const res = await apiFetch('/api/admin/registrar-conductor', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ conductor_id: conductorId, nombre, rut })
+                });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    showToast(`✅ ${data.message}`);
+                    document.getElementById('reg-id').value = '';
+                    document.getElementById('reg-rut').value = '';
+                    document.getElementById('reg-nombre').value = '';
+                    cargarConductores();
+                } else {
+                    showToast(`Error: ${data.message}`, 'error');
+                }
+            } catch (e) {
+                showToast(`Error: ${e.message}`, 'error');
+            }
+        }
+
+        async function cargarConductores() {
+            const el = document.getElementById('conductores-list');
+            try {
+                const res = await apiFetch('/api/admin/conductores');
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+
+                if (!data.conductores || data.conductores.length === 0) {
+                    el.innerHTML = '<p style="color: #6c757d;">📭 No hay conductores registrados</p>';
+                    return;
+                }
+
+                let html = `<table><thead><tr>
+                    <th>ID</th><th>Nombre</th><th>RUT</th><th>Docs</th><th>Registro</th>
+                </tr></thead><tbody>`;
+
+                data.conductores.forEach(c => {
+                    const docsStatus = c.docs_aprobados === c.total_docs && c.total_docs > 0
+                        ? `<span style="color:#28a745;">${c.docs_aprobados}/${c.total_docs} ✅</span>`
+                        : `${c.docs_aprobados}/${c.total_docs}`;
+                    html += `<tr>
+                        <td>${escapeHtml(c.conductor_id_corto)}</td>
+                        <td>${escapeHtml(c.nombre)}</td>
+                        <td>${escapeHtml(c.rut)}</td>
+                        <td>${docsStatus}</td>
+                        <td>${escapeHtml(c.fecha_registro || '-')}</td>
+                    </tr>`;
+                });
+                html += `</tbody></table>`;
+                el.innerHTML = html;
+            } catch (e) {
+                el.innerHTML = `<div class="error-state">
+                    <p>⚠️ Error: ${escapeHtml(e.message)}</p>
+                    <button class="btn-primary btn-sm" onclick="cargarConductores()">Reintentar</button>
+                </div>`;
+            }
+        }
+
+        async function cargarVersionInfo() {
+            const el = document.getElementById('version-info');
+            try {
+                const res = await apiFetch('/api/version');
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                el.innerHTML = `📱 Versión actual: <strong>${escapeHtml(data.version_name)}</strong> (code ${data.version_code}) — ${data.update_disponible ? '✅ APK disponible' : '❌ Sin APK subido'}`;
+            } catch (e) {
+                el.innerHTML = `⚠️ Error obteniendo versión: ${escapeHtml(e.message)}`;
+            }
+        }
+
+        async function subirAPK() {
+            const fileInput = document.getElementById('apk-file');
+            const versionName = document.getElementById('apk-version-name').value.trim();
+            const versionCode = document.getElementById('apk-version-code').value.trim();
+
+            if (!fileInput.files || !fileInput.files[0]) {
+                showToast('Selecciona un archivo APK', 'error');
+                return;
+            }
+            if (!versionName || !versionCode) {
+                showToast('Especifica version name y version code', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('apk', fileInput.files[0]);
+            formData.append('version_name', versionName);
+            formData.append('version_code', versionCode);
+
+            try {
+                const res = await apiFetch('/api/admin/upload-apk', { method: 'POST', body: formData });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    showToast(`📲 APK v${data.version_name} subido`);
+                    document.getElementById('apk-file').value = '';
+                    document.getElementById('apk-version-name').value = '';
+                    document.getElementById('apk-version-code').value = '';
+                    cargarVersionInfo();
+                } else {
+                    showToast(`Error: ${data.message}`, 'error');
+                }
+            } catch (e) {
+                showToast(`Error: ${e.message}`, 'error');
+            }
+        }
+
         function formatTimeAgo(seconds) {
             if (seconds < 60) return `${seconds}s atrás`;
             if (seconds < 3600) return `${Math.round(seconds / 60)}min atrás`;
@@ -587,7 +753,9 @@
                 setInterval(loadStats, 30000),
                 setInterval(loadPayments, 60000),
                 setInterval(loadDocumentosPendientes, 30000),
-                setInterval(cargarDatosDePago, 60000)
+                setInterval(cargarDatosDePago, 60000),
+                setInterval(cargarConductores, 60000),
+                setInterval(cargarVersionInfo, 60000)
             ];
         }
 
@@ -611,3 +779,4 @@
     </script>
 </body>
 </html>
+
