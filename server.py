@@ -487,6 +487,18 @@ def get_stats():
         print(f"❌ Error en stats: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/documentos/foto/<conductor_id>/<tipo_documento>', methods=['GET'])
+def servir_foto_documento(conductor_id, tipo_documento):
+    try:
+        docs = documentos_conductores.get(conductor_id, {})
+        doc = docs.get(tipo_documento, {})
+        filename = doc.get('nombre_archivo', '')
+        if not filename:
+            return jsonify({'error': 'Documento no encontrado'}), 404
+        return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 404
+
 @app.route('/api/km-report', methods=['POST'])
 def km_report():
     try:
@@ -997,3 +1009,4 @@ cargar_datos()
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+    
