@@ -661,9 +661,55 @@ def export_csv():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# ============================================
+# ✅ ADMIN - LIMPIAR DATOS DE PRUEBA
+# ============================================
+@app.route('/api/admin/limpiar-test', methods=['POST'])
+def limpiar_test():
+    try:
+        api_key = request.headers.get('X-API-Key')
+        if api_key != 'adride_iquique_2024_secreto':
+            return jsonify({'status': 'error', 'message': 'API Key inválida'}), 401
+
+        global tablets_data, km_reports, pagos_conductores, documentos_conductores
+
+        antes_docs = len(documentos_conductores)
+        documentos_conductores = {k: v for k, v in documentos_conductores.items() if not k.startswith('test_')}
+        borrados_docs = antes_docs - len(documentos_conductores)
+
+        antes_pagos = len(pagos_conductores)
+        pagos_conductores = {k: v for k, v in pagos_conductores.items() if not k.startswith('test_')}
+        borrados_pagos = antes_pagos - len(pagos_conductores)
+
+        antes_tablets = len(tablets_data)
+        tablets_data = {k: v for k, v in tablets_data.items() if not k.startswith('test_')}
+        borrados_tablets = antes_tablets - len(tablets_data)
+
+        antes_km = len(km_reports)
+        km_reports = {k: v for k, v in km_reports.items() if not k.startswith('test_')}
+        borrados_km = antes_km - len(km_reports)
+
+        guardar_datos()
+
+        print(f"🧹 Limpieza completada: {borrados_docs} docs, {borrados_pagos} pagos, {borrados_tablets} tablets, {borrados_km} km")
+        return jsonify({
+            'status': 'ok',
+            'message': 'Datos de prueba eliminados',
+            'borrados': {
+                'documentos': borrados_docs,
+                'pagos': borrados_pagos,
+                'tablets': borrados_tablets,
+                'km_reports': borrados_km
+            }
+        }), 200
+    except Exception as e:
+        print(f"❌ Error limpiando datos: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
 cargar_datos()
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
-
+    
