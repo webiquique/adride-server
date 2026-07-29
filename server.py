@@ -662,6 +662,59 @@ def export_csv():
         return jsonify({'error': str(e)}), 500
 
 # ============================================
+# ✅ VERIFICAR AUTORIZACIÓN DEL CONDUCTOR
+# ============================================
+@app.route('/api/autorizar/<conductor_id>', methods=['GET'])
+def verificar_autorizacion(conductor_id):
+    try:
+        api_key = request.headers.get('X-API-Key')
+        if api_key != 'adride_iquique_2024_secreto':
+            return jsonify({'status': 'error', 'message': 'API Key inválida'}), 401
+
+        docs = documentos_conductores.get(conductor_id, {})
+
+        if not docs:
+            return jsonify({
+                'autorizado': False,
+                'razon': 'No has subido documentos. Ve a Configuración > Documentos.',
+                'docs_aprobados': 0,
+                'docs_pendientes': 0,
+                'total_docs': 0
+            })
+
+        total = len(docs)
+        aprobados = sum(1 for d in docs.values() if d.get('estado') == 'aprobado')
+        pendientes = total - aprobados
+        rechazados = sum(1 for d in docs.values() if d.get('estado') == 'rechazado')
+
+        if pendientes > 0 or rechazados > 0:
+            razon = ''
+            if rechazados > 0:
+                razon = f'{rechazados} documento(s) rechazado(s). Ve a Documentos y sube nuevos.'
+            elif pendientes > 0:
+                razon = f'Tienes {pendientes} documento(s) pendiente(s) de aprobación por el administrador.'
+            return jsonify({
+                'autorizado': False,
+                'razon': razon,
+                'docs_aprobados': aprobados,
+                'docs_pendientes': pendientes,
+                'docs_rechazados': rechazados,
+                'total_docs': total
+            })
+
+        return jsonify({
+            'autorizado': True,
+            'razon': 'Todos tus documentos están aprobados.',
+            'docs_aprobados': aprobados,
+            'docs_pendientes': pendientes,
+            'docs_rechazados': rechazados,
+            'total_docs': total
+        })
+    except Exception as e:
+        print(f"❌ Error verificando autorización: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+# ============================================
 # ✅ ADMIN - LIMPIAR DATOS DE PRUEBA
 # ============================================
 @app.route('/api/admin/limpiar-test', methods=['POST'])
@@ -712,4 +765,5 @@ cargar_datos()
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+    
     
