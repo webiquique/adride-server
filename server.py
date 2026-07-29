@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, redirect
 from flask_cors import CORS
 import json
 import os
@@ -321,30 +321,52 @@ def subir_documento():
         api_key = request.headers.get('X-API-Key')
         if api_key != 'adride_iquique_2024_secreto':
             return jsonify({'status': 'error', 'message': 'API Key inválida'}), 401
-        if 'foto' not in request.files:
-            return jsonify({'status': 'error', 'message': 'No se recibió la foto'}), 400
-        foto = request.files['foto']
-        conductor_id = request.form.get('conductor_id')
-        tipo_documento = request.form.get('tipo_documento')
+
+        # Support both file upload and Cloudinary URL
+        foto_url = None
+
+        # Check for Cloudinary URL in JSON body
+        if request.is_json:
+            data = request.get_json()
+            conductor_id = data.get('conductor_id', '')
+            tipo_documento = data.get('tipo_documento', '')
+            foto_url = data.get('foto_url', '')
+        else:
+            conductor_id = request.form.get('conductor_id', '')
+            tipo_documento = request.form.get('tipo_documento', '')
+
         if not conductor_id or not tipo_documento:
             return jsonify({'status': 'error', 'message': 'Faltan datos'}), 400
-        if foto.filename == '' or not allowed_file(foto.filename):
-            return jsonify({'status': 'error', 'message': 'Archivo inválido'}), 400
-        filename = f"{conductor_id}_{tipo_documento}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        foto.save(filepath)
+
+        final_url = ''
+        filename = ''
+
+        if foto_url:
+            final_url = foto_url
+            filename = foto_url.split('/')[-1] if '/' in foto_url else foto_url
+        elif 'foto' in request.files:
+            foto = request.files['foto']
+            if foto.filename == '' or not allowed_file(foto.filename):
+                return jsonify({'status': 'error', 'message': 'Archivo inválido'}), 400
+            filename = f"{conductor_id}_{tipo_documento}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            foto.save(filepath)
+            final_url = f'/uploads/documentos/{filename}'
+        else:
+            return jsonify({'status': 'error', 'message': 'No se recibió la foto ni foto_url'}), 400
+
         if conductor_id not in documentos_conductores:
             documentos_conductores[conductor_id] = {}
         documentos_conductores[conductor_id][tipo_documento] = {
             'tipo_documento': tipo_documento,
-            'foto_url': f'/uploads/documentos/{filename}',
+            'foto_url': final_url,
             'estado': 'pendiente_validacion',
             'fecha_subida': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             'comentario_admin': '',
             'fecha_validacion': ''
         }
         guardar_datos()
-        print(f"📄 Documento subido: {conductor_id[:12]}... - {tipo_documento} -> {filename}")
+        print(f"📄 Documento subido: {conductor_id[:12]}... - {tipo_documento}")
         return jsonify({'status': 'ok', 'message': 'Documento subido', 'tipo_documento': tipo_documento, 'estado': 'pendiente_validacion'}), 200
     except Exception as e:
         print(f"❌ Error subiendo documento: {e}")
@@ -492,7 +514,20 @@ def servir_foto_documento(conductor_id, tipo_documento):
     try:
         docs = documentos_conductores.get(conductor_id, {})
         doc = docs.get(tipo_documento, {})
+        foto_url = doc.get('foto_url', '')
+
+        if not foto_url:
+            return jsonify({'error': 'Documento no encontrado'}), 404
+
+        # If Cloudinary URL, redirect
+        if foto_url.startswith('http'):
+            return redirect(foto_url, code=302)
+
+        # Otherwise serve from filesystem
         filename = doc.get('nombre_archivo', '')
+        # Extract filename from foto_url
+        if not filename and '/' in foto_url:
+            filename = foto_url.rsplit('/', 1)[-1]
         if not filename:
             return jsonify({'error': 'Documento no encontrado'}), 404
         return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
