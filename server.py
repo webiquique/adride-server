@@ -26,6 +26,7 @@ CORS(app)
 # ✅ CONFIGURACIÓN PARA SUBIDA DE ARCHIVOS
 UPLOAD_FOLDER = 'uploads/documentos'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(APK_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png'}
@@ -35,12 +36,17 @@ DATA_FILE = 'tablets_data.json'
 KM_FILE = 'km_reports.json'
 PAGOS_FILE = 'pagos_conductores.json'
 DOCUMENTOS_FILE = 'documentos_conductores.json'
+REGISTRO_FILE = 'conductores_registrados.json'
+APK_FOLDER = 'uploads/apk'
+VERSION_FILE = 'version_actual.json'
 
 # Variables globales
 tablets_data = {}
 km_reports = {}
 pagos_conductores = {}
 documentos_conductores = {}
+conductores_registrados = {}
+version_actual = {"version_code": 1, "version_name": "1.0.0", "apk_filename": None}
 
 # ✅ CONFIGURACIÓN DE NEGOCIO ADRIDE - MODELO 25% + 5% BONO
 config = {
@@ -71,7 +77,7 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def cargar_datos():
-    global tablets_data, km_reports, pagos_conductores, documentos_conductores
+    global tablets_data, km_reports, pagos_conductores, documentos_conductores, conductores_registrados, version_actual
     try:
         if os.path.exists(DATA_FILE):
             with open(DATA_FILE, 'r', encoding='utf-8') as f:
@@ -93,6 +99,16 @@ def cargar_datos():
                 content = f.read().strip()
                 documentos_conductores = json.loads(content) if content else {}
             print(f"✅ Documentos cargados: {len(documentos_conductores)}")
+        if os.path.exists(REGISTRO_FILE):
+            with open(REGISTRO_FILE, 'r', encoding='utf-8') as f:
+                content = f.read().strip()
+                conductores_registrados = json.loads(content) if content else {}
+            print(f"✅ Conductores registrados: {len(conductores_registrados)}")
+        if os.path.exists(VERSION_FILE):
+            with open(VERSION_FILE, 'r', encoding='utf-8') as f:
+                content = f.read().strip()
+                version_actual = json.loads(content) if content else version_actual
+            print(f"✅ Versión actual: {version_actual.get('version_name')}")
     except Exception as e:
         print(f"⚠️ Error cargando datos: {e}")
         tablets_data = {}
@@ -110,6 +126,10 @@ def guardar_datos():
             json.dump(pagos_conductores, f, indent=2, ensure_ascii=False)
         with open(DOCUMENTOS_FILE, 'w', encoding='utf-8') as f:
             json.dump(documentos_conductores, f, indent=2, ensure_ascii=False)
+        with open(REGISTRO_FILE, 'w', encoding='utf-8') as f:
+            json.dump(conductores_registrados, f, indent=2, ensure_ascii=False)
+        with open(VERSION_FILE, 'w', encoding='utf-8') as f:
+            json.dump(version_actual, f, indent=2, ensure_ascii=False)
     except Exception as e:
         print(f"❌ Error guardando datos: {e}")
 
@@ -671,12 +691,27 @@ def verificar_autorizacion(conductor_id):
         if api_key != 'adride_iquique_2024_secreto':
             return jsonify({'status': 'error', 'message': 'API Key inválida'}), 401
 
+        # 1) Verificar registro
+        registro = conductores_registrados.get(conductor_id)
+        if not registro:
+            return jsonify({
+                'autorizado': False,
+                'razon': 'No estás registrado. El administrador debe registrarte primero.',
+                'registrado': False,
+                'docs_aprobados': 0,
+                'docs_pendientes': 0,
+                'docs_rechazados': 0,
+                'total_docs': 0
+            })
+
+        # 2) Verificar documentos
         docs = documentos_conductores.get(conductor_id, {})
 
         if not docs:
             return jsonify({
                 'autorizado': False,
                 'razon': 'No has subido documentos. Ve a Configuración > Documentos.',
+                'registrado': True,
                 'docs_aprobados': 0,
                 'docs_pendientes': 0,
                 'total_docs': 0
@@ -696,6 +731,7 @@ def verificar_autorizacion(conductor_id):
             return jsonify({
                 'autorizado': False,
                 'razon': razon,
+                'registrado': True,
                 'docs_aprobados': aprobados,
                 'docs_pendientes': pendientes,
                 'docs_rechazados': rechazados,
@@ -705,6 +741,7 @@ def verificar_autorizacion(conductor_id):
         return jsonify({
             'autorizado': True,
             'razon': 'Todos tus documentos están aprobados.',
+            'registrado': True,
             'docs_aprobados': aprobados,
             'docs_pendientes': pendientes,
             'docs_rechazados': rechazados,
@@ -712,6 +749,174 @@ def verificar_autorizacion(conductor_id):
         })
     except Exception as e:
         print(f"❌ Error verificando autorización: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+# ============================================
+# ✅ REGISTRO DE CONDUCTORES
+# ============================================
+@app.route('/api/registro/<conductor_id>', methods=['GET'])
+def verificar_registro(conductor_id):
+    try:
+        api_key = request.headers.get('X-API-Key')
+        if api_key != 'adride_iquique_2024_secreto':
+            return jsonify({'status': 'error', 'message': 'API Key inválida'}), 401
+
+        registro = conductores_registrados.get(conductor_id)
+        if registro:
+            return jsonify({
+                'registrado': True,
+                'nombre': registro.get('nombre', ''),
+                'rut': registro.get('rut', '')
+            })
+        return jsonify({'registrado': False, 'nombre': '', 'rut': ''})
+    except Exception as e:
+        print(f"❌ Error verificando registro: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+# ============================================
+# ✅ ADMIN - REGISTRAR CONDUCTOR
+# ============================================
+@app.route('/api/admin/registrar-conductor', methods=['POST'])
+def admin_registrar_conductor():
+    try:
+        api_key = request.headers.get('X-API-Key')
+        if api_key != 'adride_iquique_2024_secreto':
+            return jsonify({'status': 'error', 'message': 'API Key inválida'}), 401
+
+        data = request.get_json()
+        conductor_id = data.get('conductor_id', '').strip()
+        nombre = data.get('nombre', '').strip()
+        rut = data.get('rut', '').strip()
+
+        if not conductor_id:
+            return jsonify({'status': 'error', 'message': 'conductor_id requerido'}), 400
+        if not nombre:
+            return jsonify({'status': 'error', 'message': 'Nombre del conductor requerido'}), 400
+        if not rut:
+            return jsonify({'status': 'error', 'message': 'RUT requerido'}), 400
+
+        conductores_registrados[conductor_id] = {
+            'nombre': nombre,
+            'rut': rut,
+            'fecha_registro': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        }
+        guardar_datos()
+        print(f"✅ Conductor registrado: {conductor_id[:12]}... - {nombre} ({rut})")
+        return jsonify({
+            'status': 'ok',
+            'message': f'Conductor {nombre} registrado exitosamente',
+            'conductor_id': conductor_id
+        }), 200
+    except Exception as e:
+        print(f"❌ Error registrando conductor: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+# ============================================
+# ✅ ADMIN - LISTAR CONDUCTORES REGISTRADOS
+# ============================================
+@app.route('/api/admin/conductores', methods=['GET'])
+def admin_listar_conductores():
+    try:
+        api_key = request.headers.get('X-API-Key')
+        if api_key != 'adride_iquique_2024_secreto':
+            return jsonify({'status': 'error', 'message': 'API Key inválida'}), 401
+
+        lista = []
+        for cid, reg in conductores_registrados.items():
+            docs = documentos_conductores.get(cid, {})
+            total_docs = len(docs)
+            docs_aprobados = sum(1 for d in docs.values() if d.get('estado') == 'aprobado')
+            lista.append({
+                'conductor_id': cid,
+                'conductor_id_corto': cid[:12] + '...',
+                'nombre': reg.get('nombre', ''),
+                'rut': reg.get('rut', ''),
+                'fecha_registro': reg.get('fecha_registro', ''),
+                'total_docs': total_docs,
+                'docs_aprobados': docs_aprobados,
+                'docs_pendientes': total_docs - docs_aprobados
+            })
+        return jsonify({'status': 'ok', 'conductores': lista, 'total': len(lista)}), 200
+    except Exception as e:
+        print(f"❌ Error listando conductores: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+# ============================================
+# ✅ VERSIÓN Y ACTUALIZACIÓN REMOTA
+# ============================================
+@app.route('/api/version', methods=['GET'])
+def obtener_version():
+    try:
+        v = version_actual
+        apk_url = f"/api/apk/latest" if v.get('apk_filename') else None
+        return jsonify({
+            'version_code': v.get('version_code', 1),
+            'version_name': v.get('version_name', '1.0.0'),
+            'apk_url': apk_url,
+            'update_disponible': v.get('apk_filename') is not None
+        }), 200
+    except Exception as e:
+        print(f"❌ Error obteniendo versión: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/apk/latest', methods=['GET'])
+def descargar_apk():
+    try:
+        filename = version_actual.get('apk_filename')
+        if not filename:
+            return jsonify({'error': 'No hay APK disponible'}), 404
+        return send_from_directory(APK_FOLDER, filename, as_attachment=True)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 404
+
+@app.route('/api/admin/upload-apk', methods=['POST'])
+def admin_upload_apk():
+    try:
+        api_key = request.headers.get('X-API-Key')
+        if api_key != 'adride_iquique_2024_secreto':
+            return jsonify({'status': 'error', 'message': 'API Key inválida'}), 401
+
+        if 'apk' not in request.files:
+            return jsonify({'status': 'error', 'message': 'Archivo APK requerido'}), 400
+
+        file = request.files['apk']
+        if file.filename == '':
+            return jsonify({'status': 'error', 'message': 'Nombre de archivo vacío'}), 400
+
+        if not file.filename.endswith('.apk'):
+            return jsonify({'status': 'error', 'message': 'Solo archivos .apk son permitidos'}), 400
+
+        filename = secure_filename(file.filename)
+        # Add timestamp to avoid caching issues
+        import random
+        timestamp = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
+        safe_name = f"adride_{timestamp}_{filename}"
+        file.save(os.path.join(APK_FOLDER, safe_name))
+
+        # Clean up old APKs
+        for old in os.listdir(APK_FOLDER):
+            if old != safe_name:
+                try:
+                    os.remove(os.path.join(APK_FOLDER, old))
+                except:
+                    pass
+
+        version_code = request.form.get('version_code', str(version_actual['version_code'] + 1))
+        version_name = request.form.get('version_name', f"1.{version_code}.0")
+        version_actual['version_code'] = int(version_code)
+        version_actual['version_name'] = version_name
+        version_actual['apk_filename'] = safe_name
+        guardar_datos()
+
+        print(f"✅ APK subido: {safe_name} (v{version_name}, code {version_code})")
+        return jsonify({
+            'status': 'ok',
+            'message': f'APK v{version_name} subido exitosamente',
+            'version_code': int(version_code),
+            'version_name': version_name
+        }), 200
+    except Exception as e:
+        print(f"❌ Error subiendo APK: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # ============================================
@@ -724,7 +929,7 @@ def limpiar_test():
         if api_key != 'adride_iquique_2024_secreto':
             return jsonify({'status': 'error', 'message': 'API Key inválida'}), 401
 
-        global tablets_data, km_reports, pagos_conductores, documentos_conductores
+        global tablets_data, km_reports, pagos_conductores, documentos_conductores, conductores_registrados
 
         antes_docs = len(documentos_conductores)
         documentos_conductores = {k: v for k, v in documentos_conductores.items() if not k.startswith('test_')}
@@ -742,9 +947,13 @@ def limpiar_test():
         km_reports = {k: v for k, v in km_reports.items() if not k.startswith('test_')}
         borrados_km = antes_km - len(km_reports)
 
+        antes_reg = len(conductores_registrados)
+        conductores_registrados = {k: v for k, v in conductores_registrados.items() if not k.startswith('test_')}
+        borrados_reg = antes_reg - len(conductores_registrados)
+
         guardar_datos()
 
-        print(f"🧹 Limpieza completada: {borrados_docs} docs, {borrados_pagos} pagos, {borrados_tablets} tablets, {borrados_km} km")
+        print(f"🧹 Limpieza completada: {borrados_docs} docs, {borrados_pagos} pagos, {borrados_tablets} tablets, {borrados_km} km, {borrados_reg} registros")
         return jsonify({
             'status': 'ok',
             'message': 'Datos de prueba eliminados',
@@ -752,7 +961,8 @@ def limpiar_test():
                 'documentos': borrados_docs,
                 'pagos': borrados_pagos,
                 'tablets': borrados_tablets,
-                'km_reports': borrados_km
+                'km_reports': borrados_km,
+                'registros': borrados_reg
             }
         }), 200
     except Exception as e:
