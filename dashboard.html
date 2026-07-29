@@ -737,18 +737,21 @@
 
         async function verDocumentos(conductorId, nombre) {
             try {
-                const res = await apiFetch(`/api/documentos/${conductorId}`);
+                const res = await apiFetch(`/api/documentos/estado/${conductorId}`);
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const data = await res.json();
 
-                if (!data.documentos || data.documentos.length === 0) {
+                const docsObj = data.documentos || {};
+                const docsArray = Object.keys(docsObj).map(tipo => ({ tipo_documento: tipo, ...docsObj[tipo] }));
+
+                if (docsArray.length === 0) {
                     showToast('Sin documentos para este conductor', 'error');
                     return;
                 }
 
                 let html = `<h3>📄 Documentos de ${escapeHtml(nombre)}</h3><div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:15px; margin-top:15px;">`;
 
-                data.documentos.forEach(doc => {
+                docsArray.forEach(doc => {
                     const imgUrl = `${API_BASE}/api/documentos/foto/${conductorId}/${doc.tipo_documento}`;
                     const estadoColor = doc.estado === 'aprobado' ? '#28a745' : doc.estado === 'rechazado' ? '#dc3545' : '#ff9800';
                     const estadoLabel = doc.estado === 'aprobado' ? '✅ Aprobado' : doc.estado === 'rechazado' ? '❌ Rechazado' : '⏳ Pendiente';
@@ -843,5 +846,6 @@
     </script>
 </body>
 </html>
+
 
 
