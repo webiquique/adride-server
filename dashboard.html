@@ -658,7 +658,7 @@
                 }
 
                 let html = `<table><thead><tr>
-                    <th>ID</th><th>Nombre</th><th>RUT</th><th>Docs</th><th>Registro</th>
+                    <th>ID</th><th>Nombre</th><th>RUT</th><th>Docs</th><th>Registro</th><th></th>
                 </tr></thead><tbody>`;
 
                 data.conductores.forEach(c => {
@@ -671,6 +671,7 @@
                         <td>${escapeHtml(c.rut)}</td>
                         <td>${docsStatus}</td>
                         <td>${escapeHtml(c.fecha_registro || '-')}</td>
+                        <td><button class="btn-danger btn-sm" onclick="eliminarConductor('${c.conductor_id}', '${escapeHtml(c.nombre)}')">🗑️</button></td>
                     </tr>`;
                 });
                 html += `</tbody></table>`;
@@ -731,6 +732,23 @@
             }
         }
 
+        async function eliminarConductor(conductorId, nombre) {
+            const ok = await showConfirm('🗑️ Eliminar conductor', `¿Dar de baja a ${nombre}?`);
+            if (!ok) return;
+            try {
+                const res = await apiFetch(`/api/admin/eliminar-conductor/${conductorId}`, { method: 'POST' });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    showToast(`🗑️ ${data.message}`);
+                    cargarConductores();
+                } else {
+                    showToast(`Error: ${data.message}`, 'error');
+                }
+            } catch (e) {
+                showToast(`Error: ${e.message}`, 'error');
+            }
+        }
+
         function formatTimeAgo(seconds) {
             if (seconds < 60) return `${seconds}s atrás`;
             if (seconds < 3600) return `${Math.round(seconds / 60)}min atrás`;
@@ -779,4 +797,5 @@
     </script>
 </body>
 </html>
+
 
