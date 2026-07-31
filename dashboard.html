@@ -181,12 +181,12 @@
         </div>
 
         <div class="card">
-            <h2>💰 Cálculo de Pagos (Acumulado)</h2>
+            <h2>💰 Cálculo de Pagos (Diario)</h2>
             <p style="color: #a0a0a0; margin-bottom: 15px;">
-                Fórmula: <strong>25% Base + hasta 5% Bono por desempeño</strong>
-                <br>📊 Revenue por impresión: $30 CLP | 🎯 Máximo payout: 30% del revenue generado
-                <br>📍 Bono: +1.5% Km ≥ 50 | +1.5% Impresiones ≥ 100 | +1% Documentos | +1% Conectividad
-                <br><strong style="color: #FF9800;">⚠️ Estos valores son ACUMULADOS. El pago se procesa al cierre mensual.</strong>
+                Fórmula: <strong>Fondo diario = 40% del ingreso diario</strong> repartido por puntaje
+                <br>📈 Ingreso diario = $250.000 / 30 días | 🎯 Reparto: impresiones + (km − 50) × 10
+                <br>🏛️ Retención de impuesto: <strong>12.5% sobre el pago bruto</strong>
+                <br><strong style="color: #FF9800;">⚠️ El pago se calcula sobre el día actual. Se procesa al cierre mensual.</strong>
             </p>
             <div id="payments-summary" class="loading">Cargando pagos...</div>
             <button onclick="exportCSV()" class="btn-primary" style="margin-top: 15px;">📄 Exportar CSV para Transferencia</button>
@@ -254,6 +254,23 @@
                 </div>
             </div>
             <div id="version-info" style="margin-top:15px; color:#a0a0a0;"></div>
+        </div>
+
+        <div class="card">
+            <h2>📄 Documentos Legales</h2>
+            <p style="color: #a0a0a0; margin-bottom: 15px;">Edita los textos que los conductores ven en la app: Términos y Condiciones y Contrato de Prestación de Servicios. Se guardan al instante y se reflejan en las tablets.</p>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+                <div>
+                    <h3>Términos y Condiciones</h3>
+                    <textarea id="legal-terminos" rows="12" style="width:100%; padding:12px; border-radius:8px; border:1px solid #444; background:#1b2838; color:#fff; margin-top:10px; font-family:monospace; resize:vertical;">Cargando...</textarea>
+                    <button class="btn-success" onclick="guardarLegal('terminos')" style="margin-top:10px;">💾 Guardar Términos</button>
+                </div>
+                <div>
+                    <h3>Contrato de Prestación de Servicios</h3>
+                    <textarea id="legal-contrato" rows="12" style="width:100%; padding:12px; border-radius:8px; border:1px solid #444; background:#1b2838; color:#fff; margin-top:10px; font-family:monospace; resize:vertical;">Cargando...</textarea>
+                    <button class="btn-success" onclick="guardarLegal('contrato')" style="margin-top:10px;">💾 Guardar Contrato</button>
+                </div>
+            </div>
         </div>
 
         <footer style="text-align: center; color: #a0a0a0; padding: 20px; margin-top: 30px;">
@@ -351,8 +368,39 @@
                 loadDocumentosPendientes(),
                 cargarDatosDePago(),
                 cargarConductores(),
-                cargarVersionInfo()
+                cargarVersionInfo(),
+                loadLegal()
             ]);
+        }
+
+        async function loadLegal() {
+            try {
+                const res = await apiFetch('/api/legal/terminos');
+                const resC = await apiFetch('/api/legal/contrato');
+                const dataT = await res.json();
+                const dataC = await resC.json();
+                document.getElementById('legal-terminos').value = dataT.contenido || '';
+                document.getElementById('legal-contrato').value = dataC.contenido || '';
+            } catch (e) {
+                document.getElementById('legal-terminos').value = '(error al cargar)';
+                document.getElementById('legal-contrato').value = '(error al cargar)';
+            }
+        }
+
+        async function guardarLegal(tipo) {
+            const id = tipo === 'terminos' ? 'legal-terminos' : 'legal-contrato';
+            const contenido = document.getElementById(id).value;
+            try {
+                const res = await apiFetch(`/api/admin/legal/${tipo}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contenido })
+                });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                showToast(tipo === 'terminos' ? '✅ Términos y Condiciones guardados' : '✅ Contrato guardado');
+            } catch (e) {
+                showToast('❌ Error al guardar: ' + e.message, 'error');
+            }
         }
 
         async function loadTablets() {
@@ -420,39 +468,50 @@
                 }
 
                 let html = `<table><thead><tr>
-                    <th>Conductor</th><th>Revenue</th><th>Impresiones</th><th>Km</th>
-                    <th>Base (25%)</th><th>Bono (5%)</th><th>TOTAL</th><th>%</th>
+                    <th>Conductor</th><th>Impresiones</th><th>Km</th><th>Puntaje</th>
+                    <th>Bruto</th><th>Impuesto (12.5%)</th><th>NETO</th>
                 </tr></thead><tbody>`;
 
                 data.detalles.forEach(p => {
                     html += `<tr>
                         <td>${escapeHtml((p.conductor_id || '').substring(0,12))}...</td>
-                        <td><strong>$${(p.revenue_generado ?? 0).toLocaleString('es-CL')}</strong></td>
                         <td>${p.total_impressions ?? 0}</td>
                         <td style="color: #9C27B0;">${(p.km_acumulados_hoy ?? 0).toFixed(2)} km</td>
-                        <td style="color: #2196F3;">$${(p.pago_base ?? 0).toLocaleString('es-CL')}</td>
-                        <td style="color: #FF9800;">$${(p.pago_bono ?? 0).toLocaleString('es-CL')}</td>
-                        <td style="color: #4CAF50; font-weight: bold;">$${(p.pago_total ?? 0).toLocaleString('es-CL')}</td>
-                        <td>${p.porcentaje_real ?? '0%'}</td>
+                        <td>${(p.puntaje ?? 0).toFixed(0)}</td>
+                        <td style="color: #2196F3;">$${(p.pago_bruto ?? 0).toLocaleString('es-CL')}</td>
+                        <td style="color: #FF9800;">-$${(p.impuesto_retenido ?? 0).toLocaleString('es-CL')}</td>
+                        <td style="color: #4CAF50; font-weight: bold;">$${(p.pago_neto ?? 0).toLocaleString('es-CL')}</td>
                     </tr>`;
                 });
                 html += `</tbody></table>`;
 
                 const payoutTotal = data.payout_total ?? 0;
-                const revenueTotal = data.revenue_total_generado ?? 0;
-                const adrideRetencion = data.adride_retencion ?? 0;
+                const fondoDiario = data.fondo_diario ?? 0;
+                const impuestoTotal = data.impuesto_total_retenido ?? 0;
+                const ingresoDiario = data.ingreso_diario ?? 0;
+                const retencionAdride = data.retencion_adride ?? 0;
                 const porcentajePayout = data.porcentaje_payout ?? '0%';
 
                 html += `<div style="margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                     <div style="padding: 15px; background: #e8f5e9; border-radius: 8px; border-left: 4px solid #4CAF50;">
-                        <h4 style="margin: 0 0 10px 0; color: #2e7d32;">💰 Total a Pagar</h4>
+                        <h4 style="margin: 0 0 10px 0; color: #2e7d32;">💰 Total Neto a Pagar</h4>
                         <p style="font-size: 1.5em; margin: 0; color: #2e7d32;"><strong>$${payoutTotal.toLocaleString('es-CL')} CLP</strong></p>
-                        <p style="margin: 5px 0; color: #666;">${porcentajePayout} del revenue</p>
+                        <p style="margin: 5px 0; color: #666;">${porcentajePayout} del ingreso diario (fondo $${fondoDiario.toLocaleString('es-CL')})</p>
                     </div>
                     <div style="padding: 15px; background: #fff3e0; border-radius: 8px; border-left: 4px solid #FF9800;">
-                        <h4 style="margin: 0 0 10px 0; color: #ef6c00;">🏢 Retención AdRide</h4>
-                        <p style="font-size: 1.5em; margin: 0; color: #ef6c00;"><strong>$${adrideRetencion.toLocaleString('es-CL')} CLP</strong></p>
-                        <p style="margin: 5px 0; color: #666;">${revenueTotal > 0 ? ((adrideRetencion/revenueTotal)*100).toFixed(1) : 0}% del revenue</p>
+                        <h4 style="margin: 0 0 10px 0; color: #ef6c00;">🏛️ Impuestos Retenidos (12.5%)</h4>
+                        <p style="font-size: 1.5em; margin: 0; color: #ef6c00;"><strong>$${impuestoTotal.toLocaleString('es-CL')} CLP</strong></p>
+                        <p style="margin: 5px 0; color: #666;">retenidos para declarar</p>
+                    </div>
+                    <div style="padding: 15px; background: #e3f2fd; border-radius: 8px; border-left: 4px solid #2196F3;">
+                        <h4 style="margin: 0 0 10px 0; color: #1565c0;">📈 Ingreso Diario AdRide</h4>
+                        <p style="font-size: 1.5em; margin: 0; color: #1565c0;"><strong>$${ingresoDiario.toLocaleString('es-CL')} CLP</strong></p>
+                        <p style="margin: 5px 0; color: #666;">avisos contratados: ${data.avisos_contratados ?? 0}</p>
+                    </div>
+                    <div style="padding: 15px; background: #ede7f6; border-radius: 8px; border-left: 4px solid #9C27B0;">
+                        <h4 style="margin: 0 0 10px 0; color: #6a1b9a;">🏢 Retención AdRide</h4>
+                        <p style="font-size: 1.5em; margin: 0; color: #6a1b9a;"><strong>$${retencionAdride.toLocaleString('es-CL')} CLP</strong></p>
+                        <p style="margin: 5px 0; color: #666;">${ingresoDiario > 0 ? ((retencionAdride/ingresoDiario)*100).toFixed(1) : 0}% del ingreso</p>
                     </div>
                 </div>`;
 

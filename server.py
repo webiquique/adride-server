@@ -49,6 +49,7 @@ PAGOS_FILE = 'pagos_conductores.json'
 DOCUMENTOS_FILE = 'documentos_conductores.json'
 REGISTRO_FILE = 'conductores_registrados.json'
 VERSION_FILE = 'version_actual.json'
+LEGAL_FILE = 'legal_docs.json'
 
 # Variables globales
 tablets_data = {}
@@ -57,6 +58,10 @@ pagos_conductores = {}
 documentos_conductores = {}
 conductores_registrados = {}
 version_actual = {"version_code": 1, "version_name": "1.0.0", "apk_filename": None}
+legal_docs = {
+    "terminos_condiciones": "### Términos y Condiciones\n\nTexto pendiente de publicación.",
+    "contrato_servicios": "### Contrato de Prestación de Servicios\n\nTexto pendiente de publicación."
+}
 
 # ✅ CONFIGURACIÓN DE NEGOCIO ADRIDE - MODELO 25% + 5% BONO
 config = {
@@ -80,14 +85,84 @@ config["porcentaje_para_adride"] = 0.60
 config["dias_mes"] = 30
 config["bono_horas_pico_porcentaje"] = 0.20
 
+# ✅ MODELO NUEVO DE PAGO: fondo diario 40% del ingreso, reparto por puntaje, retención 12.5%
+config["precio_aviso_mensual"] = 50000
+config["tasa_impuesto_conductor"] = 0.125          # retención legal 12.5%
+config["km_minimo_puntaje"] = 50                    # sobre este km, cada km extra suma
+config["peso_km_extra_puntaje"] = 10                # 10 pts por km extra
+config["peso_impresion_puntaje"] = 1                # 1 pt por impresión
+
 fondo_conductores_mensual = config["presupuesto_total_mensual"] * config["porcentaje_para_conductores"]
 fondo_conductores_diario = fondo_conductores_mensual / config["dias_mes"]
+
+def calcular_avisos_contratados():
+    return int(config["presupuesto_total_mensual"] / config["precio_aviso_mensual"])
+
+def calcular_puntaje_conductor(total_impressions, km_hoy):
+    return (total_impressions * config["peso_impresion_puntaje"]
+            + max(0, km_hoy - config["km_minimo_puntaje"]) * config["peso_km_extra_puntaje"])
+
+def calcular_pagos_nuevo_modelo():
+    """Fondo diario = 40% del ingreso diario. Reparto proporcional al puntaje
+    (impresiones + km>50). Retención de impuesto 12.5% sobre el bruto."""
+    fecha_hoy = datetime.datetime.now().strftime('%Y-%m-%d')
+    avisos = calcular_avisos_contratados()
+    ingreso_diario = config["presupuesto_total_mensual"] / config["dias_mes"]
+    fondo_diario = ingreso_diario * config["porcentaje_para_conductores"]
+
+    puntajes = {}
+    detalles = []
+    total_puntaje = 0
+    for conductor_id, data in tablets_data.items():
+        total_impressions = int(data.get('total_impressions', 0) or 0)
+        km_hoy = km_reports.get(conductor_id, {}).get(fecha_hoy, 0.0) or 0.0
+        puntaje = calcular_puntaje_conductor(total_impressions, km_hoy)
+        puntajes[conductor_id] = {
+            'impresiones': total_impressions,
+            'km_hoy': km_hoy,
+            'puntaje': puntaje
+        }
+        total_puntaje += puntaje
+
+    payout_total = 0
+    impuesto_total = 0
+    for conductor_id, p in puntajes.items():
+        pago_bruto = (p['puntaje'] / total_puntaje * fondo_diario) if total_puntaje > 0 else 0
+        impuesto = pago_bruto * config["tasa_impuesto_conductor"]
+        pago_neto = pago_bruto - impuesto
+        payout_total += pago_neto
+        impuesto_total += impuesto
+        detalles.append({
+            'conductor_id': conductor_id,
+            'total_impressions': p['impresiones'],
+            'km_acumulados_hoy': round(p['km_hoy'], 2),
+            'puntaje': round(p['puntaje'], 2),
+            'pago_bruto': round(pago_bruto, 2),
+            'impuesto_retenido': round(impuesto, 2),
+            'pago_neto': round(pago_neto, 2)
+        })
+
+    return {
+        'detalles': detalles,
+        'avisos_contratados': avisos,
+        'ingreso_diario': round(ingreso_diario, 2),
+        'fondo_diario': round(fondo_diario, 2),
+        'payout_total': round(payout_total, 2),
+        'impuesto_total_retenido': round(impuesto_total, 2),
+        'revenue_total_generado': round(ingreso_diario, 2),
+        'retencion_adride': round(ingreso_diario - fondo_diario, 2),
+        'porcentaje_payout': f"{round(fondo_diario / ingreso_diario * 100, 1) if ingreso_diario > 0 else 0}%",
+        'tasa_impuesto': f"{config['tasa_impuesto_conductor'] * 100}%",
+        'conductores_count': len(detalles),
+        'periodo': 'diario',
+        'fecha_calculo': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    }
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def cargar_datos():
-    global tablets_data, km_reports, pagos_conductores, documentos_conductores, conductores_registrados, version_actual
+    global tablets_data, km_reports, pagos_conductores, documentos_conductores, conductores_registrados, version_actual, legal_docs
     try:
         if os.path.exists(DATA_FILE):
             with open(DATA_FILE, 'r', encoding='utf-8') as f:
@@ -119,6 +194,11 @@ def cargar_datos():
                 content = f.read().strip()
                 version_actual = json.loads(content) if content else version_actual
             print(f"✅ Versión actual: {version_actual.get('version_name')}")
+        if os.path.exists(LEGAL_FILE):
+            with open(LEGAL_FILE, 'r', encoding='utf-8') as f:
+                content = f.read().strip()
+                legal_docs.update(json.loads(content) if content else {})
+            print(f"✅ Documentos legales cargados")
     except Exception as e:
         print(f"⚠️ Error cargando datos: {e}")
         tablets_data = {}
@@ -140,6 +220,8 @@ def guardar_datos():
             json.dump(conductores_registrados, f, indent=2, ensure_ascii=False)
         with open(VERSION_FILE, 'w', encoding='utf-8') as f:
             json.dump(version_actual, f, indent=2, ensure_ascii=False)
+        with open(LEGAL_FILE, 'w', encoding='utf-8') as f:
+            json.dump(legal_docs, f, indent=2, ensure_ascii=False)
     except Exception as e:
         print(f"❌ Error guardando datos: {e}")
 
@@ -601,49 +683,76 @@ def km_report():
         print(f"❌ Error en km-report: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
+# ✅ DOCUMENTOS LEGALES (TÉRMINOS Y CONDICIONES / CONTRATO DE SERVICIOS)
 # ============================================
-# ✅ CÁLCULO DE PAGOS 25% + 5%
+@app.route('/api/legal/<tipo>', methods=['GET'])
+def obtener_documento_legal(tipo):
+    try:
+        clave = 'terminos_condiciones' if tipo in ('terminos', 'terminos_condiciones') else 'contrato_servicios'
+        if tipo not in ('terminos', 'terminos_condiciones', 'contrato', 'contrato_servicios'):
+            return jsonify({'status': 'error', 'message': 'Tipo inválido'}), 400
+        return jsonify({'status': 'ok', 'tipo': tipo, 'titulo': clave, 'contenido': legal_docs.get(clave, '')}), 200
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/admin/legal/<tipo>', methods=['POST'])
+def guardar_documento_legal(tipo):
+    try:
+        api_key = request.headers.get('X-API-Key')
+        if api_key != 'adride_iquique_2024_secreto':
+            return jsonify({'status': 'error', 'message': 'API Key inválida'}), 401
+        if tipo not in ('terminos', 'terminos_condiciones', 'contrato', 'contrato_servicios'):
+            return jsonify({'status': 'error', 'message': 'Tipo inválido'}), 400
+        body = request.get_json(force=True)
+        contenido = body.get('contenido', '')
+        clave = 'terminos_condiciones' if tipo in ('terminos', 'terminos_condiciones') else 'contrato_servicios'
+        legal_docs[clave] = contenido
+        guardar_datos()
+        return jsonify({'status': 'ok', 'message': 'Documento guardado', 'tipo': tipo}), 200
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+# ============================================
+# ✅ CÁLCULO DE PAGOS - MODELO NUEVO
+# Fondo diario = 40% del ingreso diario (avisos × $50.000 / 30 días)
+# Reparto proporcional al puntaje: impresiones + km>50 × 10
+# Retención de impuesto 12.5% sobre el pago bruto
 # ============================================
 @app.route('/api/payments/calculate/<conductor_id>', methods=['GET'])
 def calcular_pago_conductor(conductor_id):
     try:
         if conductor_id not in tablets_data:
             return jsonify({'error': 'Conductor no encontrado'}), 404
-        data = tablets_data[conductor_id]
-        total_impressions = int(data.get('total_impressions', 0) or 0)
-        revenue_generado = total_impressions * config['valor_por_impresion']
-        fecha_hoy = datetime.datetime.now().strftime('%Y-%m-%d')
-        km_acumulados_hoy = km_reports.get(conductor_id, {}).get(fecha_hoy, 0.0)
-        pago_base = revenue_generado * config['porcentaje_base_conductor']
-        bono_km = revenue_generado * config['bono_km_porcentaje'] if km_acumulados_hoy >= config['km_minimos_bono'] else 0
-        bono_impresiones = revenue_generado * config['bono_impresiones_porcentaje'] if total_impressions >= config['impresiones_minimas_bono'] else 0
-        bono_documentos = 0
+        resumen = calcular_pagos_nuevo_modelo()
+        detalle = next((d for d in resumen['detalles'] if d['conductor_id'] == conductor_id), None)
+        if not detalle:
+            return jsonify({'error': 'Conductor no encontrado en el cálculo'}), 404
+
+        docs_aprobados = False
         if conductor_id in documentos_conductores:
             docs = documentos_conductores[conductor_id]
-            if docs and all(doc.get('estado') == 'aprobado' for doc in docs.values()):
-                bono_documentos = revenue_generado * config['bono_documentos_aprobados']
-        bono_conectividad = 0
-        last_seen = data.get('last_seen', 0)
-        if last_seen:
-            try:
-                ahora = datetime.datetime.now().timestamp()
-                if (ahora - float(last_seen)) / 3600 < 2:
-                    bono_conectividad = revenue_generado * config['bono_conectividad_estable']
-            except:
-                pass
-        pago_bono = min(bono_km + bono_impresiones + bono_documentos + bono_conectividad, revenue_generado * config['porcentaje_bono_maximo'])
-        pago_total = min(pago_base + pago_bono, revenue_generado * config['porcentaje_maximo_total'])
-        porcentaje_real = (pago_total / revenue_generado * 100) if revenue_generado > 0 else 0
+            docs_aprobados = bool(docs) and all(doc.get('estado') == 'aprobado' for doc in docs.values())
+
+        proximo_pago = (datetime.datetime.now().replace(day=1) + datetime.timedelta(days=32)).replace(day=1)
         return jsonify({
+            'status': 'ok',
             'conductor_id': conductor_id,
-            'revenue_generado': round(revenue_generado, 2),
-            'total_impressions': total_impressions,
-            'km_acumulados_hoy': round(km_acumulados_hoy, 2),
-            'pago_base': round(pago_base, 2),
-            'bonos_detalle': {'km': round(bono_km, 2), 'impresiones': round(bono_impresiones, 2), 'documentos': round(bono_documentos, 2), 'conectividad': round(bono_conectividad, 2)},
-            'pago_bono': round(pago_bono, 2),
-            'pago_total': round(pago_total, 2),
-            'porcentaje_real': f"{porcentaje_real:.1f}%"
+            'impresiones': detalle['total_impressions'],
+            'kilometros': detalle['km_acumulados_hoy'],
+            'puntaje': detalle['puntaje'],
+            'ingreso_diario': resumen['ingreso_diario'],
+            'fondo_diario': resumen['fondo_diario'],
+            'pago_bruto': detalle['pago_bruto'],
+            'impuesto_retenido': detalle['impuesto_retenido'],
+            'pago_neto': detalle['pago_neto'],
+            'pago_base': detalle['pago_bruto'],
+            'bono_monto': 0,
+            'bono_porcentaje': 0,
+            'ganancia_total': detalle['pago_neto'],
+            'documentos_aprobados': docs_aprobados,
+            'connectivity_stable': True,
+            'proximo_pago': proximo_pago.strftime('%Y-%m-%d'),
+            'tasa_impuesto': resumen['tasa_impuesto']
         }), 200
     except Exception as e:
         print(f"❌ Error calculando pago: {e}")
@@ -652,61 +761,7 @@ def calcular_pago_conductor(conductor_id):
 @app.route('/api/payments/calculate', methods=['GET'])
 def calcular_pagos_todos():
     try:
-        detalles = []
-        payout_total = 0
-        revenue_total = 0
-        for conductor_id in tablets_data.keys():
-            try:
-                data = tablets_data[conductor_id]
-                total_impressions = int(data.get('total_impressions', 0) or 0)
-                revenue_generado = total_impressions * config['valor_por_impresion']
-                fecha_hoy = datetime.datetime.now().strftime('%Y-%m-%d')
-                km_acumulados_hoy = km_reports.get(conductor_id, {}).get(fecha_hoy, 0.0)
-                pago_base = revenue_generado * config['porcentaje_base_conductor']
-                bono_km = revenue_generado * config['bono_km_porcentaje'] if km_acumulados_hoy >= config['km_minimos_bono'] else 0
-                bono_impresiones = revenue_generado * config['bono_impresiones_porcentaje'] if total_impressions >= config['impresiones_minimas_bono'] else 0
-                bono_documentos = 0
-                if conductor_id in documentos_conductores:
-                    docs = documentos_conductores[conductor_id]
-                    if docs and all(doc.get('estado') == 'aprobado' for doc in docs.values()):
-                        bono_documentos = revenue_generado * config['bono_documentos_aprobados']
-                bono_conectividad = 0
-                last_seen = data.get('last_seen', 0)
-                if last_seen:
-                    try:
-                        ahora = datetime.datetime.now().timestamp()
-                        if (ahora - float(last_seen)) / 3600 < 2:
-                            bono_conectividad = revenue_generado * config['bono_conectividad_estable']
-                    except:
-                        pass
-                pago_bono = min(bono_km + bono_impresiones + bono_documentos + bono_conectividad, revenue_generado * config['porcentaje_bono_maximo'])
-                pago_total_conductor = min(pago_base + pago_bono, revenue_generado * config['porcentaje_maximo_total'])
-                detalles.append({
-                    'conductor_id': conductor_id,
-                    'revenue_generado': round(revenue_generado, 2),
-                    'total_impressions': total_impressions,
-                    'km_acumulados_hoy': round(km_acumulados_hoy, 2),
-                    'pago_base': round(pago_base, 2),
-                    'pago_bono': round(pago_bono, 2),
-                    'pago_total': round(pago_total_conductor, 2),
-                    'porcentaje_real': f"{round(pago_total_conductor / revenue_generado * 100, 1) if revenue_generado > 0 else 0}%"
-                })
-                payout_total += pago_total_conductor
-                revenue_total += revenue_generado
-            except Exception as e:
-                print(f"⚠️ Error calculando pago para {conductor_id}: {e}")
-                continue
-        adride_retencion = revenue_total - payout_total
-        return jsonify({
-            'detalles': detalles,
-            'payout_total': round(payout_total, 2),
-            'revenue_total_generado': round(revenue_total, 2),
-            'adride_retencion': round(adride_retencion, 2),
-            'porcentaje_payout': f"{round(payout_total / revenue_total * 100, 1) if revenue_total > 0 else 0}%",
-            'conductores_count': len(detalles),
-            'periodo': 'acumulado',
-            'fecha_calculo': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        }), 200
+        return jsonify(calcular_pagos_nuevo_modelo()), 200
     except Exception as e:
         print(f"❌ Error calculando pagos: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
@@ -761,15 +816,10 @@ def export_csv():
     try:
         now = datetime.datetime.now()
         fecha_hoy = now.strftime('%Y-%m-%d')
-        csv_content = "conductor_id,revenue_generado,impresiones,pago_base,pago_bono,pago_total,porcentaje_real,fecha\n"
-        for conductor_id, data in tablets_data.items():
-            total_impressions = int(data.get('total_impressions', 0) or 0)
-            revenue_generado = total_impressions * config["valor_por_impresion"]
-            pago_base = revenue_generado * config["porcentaje_base_conductor"]
-            bono_porcentaje = calcular_bono_desempeno(conductor_id, data)
-            pago_bono = revenue_generado * bono_porcentaje
-            pago_total = min(pago_base + pago_bono, revenue_generado * config['porcentaje_maximo_total'])
-            csv_content += f"{conductor_id},{revenue_generado},{total_impressions},{round(pago_base)},{round(pago_bono)},{round(pago_total)},{(pago_total/revenue_generado)*100:.1f}%,{fecha_hoy}\n"
+        resumen = calcular_pagos_nuevo_modelo()
+        csv_content = "conductor_id,impresiones,km,puntaje,pago_bruto,impuesto_12.5,pago_neto,fecha\n"
+        for d in resumen['detalles']:
+            csv_content += f"{d['conductor_id']},{d['total_impressions']},{d['km_acumulados_hoy']},{d['puntaje']},{round(d['pago_bruto'])},{round(d['impuesto_retenido'])},{round(d['pago_neto'])},{fecha_hoy}\n"
         return app.response_class(response=csv_content, status=200, mimetype='text/csv', headers={'Content-Disposition': f'attachment;filename=pagos_adride_{fecha_hoy}.csv'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
