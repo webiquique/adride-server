@@ -79,7 +79,7 @@ config = {
 
 config["tarifa_km"] = 15
 config["tarifa_hora_activa"] = 500
-config["precio_aviso_mensual"] = 40000
+config["precio_aviso_mensual"] = 61880
 config["avisos_contratados"] = 5
 config["presupuesto_total_mensual"] = config["precio_aviso_mensual"] * config["avisos_contratados"]
 config["porcentaje_para_conductores"] = 0.40
