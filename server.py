@@ -79,14 +79,15 @@ config = {
 
 config["tarifa_km"] = 15
 config["tarifa_hora_activa"] = 500
-config["presupuesto_total_mensual"] = 250000
+config["precio_aviso_mensual"] = 40000
+config["avisos_contratados"] = 5
+config["presupuesto_total_mensual"] = config["precio_aviso_mensual"] * config["avisos_contratados"]
 config["porcentaje_para_conductores"] = 0.40
 config["porcentaje_para_adride"] = 0.60
 config["dias_mes"] = 30
 config["bono_horas_pico_porcentaje"] = 0.20
 
 # ✅ MODELO NUEVO DE PAGO: fondo diario 40% del ingreso, reparto por puntaje, retención 12.5%
-config["precio_aviso_mensual"] = 50000
 config["tasa_impuesto_conductor"] = 0.125          # retención legal 12.5%
 config["km_minimo_puntaje"] = 50                    # sobre este km, cada km extra suma
 config["peso_km_extra_puntaje"] = 10                # 10 pts por km extra
@@ -96,7 +97,7 @@ fondo_conductores_mensual = config["presupuesto_total_mensual"] * config["porcen
 fondo_conductores_diario = fondo_conductores_mensual / config["dias_mes"]
 
 def calcular_avisos_contratados():
-    return int(config["presupuesto_total_mensual"] / config["precio_aviso_mensual"])
+    return int(config.get("avisos_contratados", 5))
 
 def calcular_puntaje_conductor(total_impressions, km_hoy):
     return (total_impressions * config["peso_impresion_puntaje"]
