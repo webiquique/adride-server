@@ -45,6 +45,7 @@ ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png'}
 # Archivos de datos
 DATA_FILE = 'tablets_data.json'
 KM_FILE = 'km_reports.json'
+IMPRESIONES_FILE = 'impresiones_reports.json'
 PAGOS_FILE = 'pagos_conductores.json'
 DOCUMENTOS_FILE = 'documentos_conductores.json'
 REGISTRO_FILE = 'conductores_registrados.json'
@@ -54,6 +55,7 @@ LEGAL_FILE = 'legal_docs.json'
 # Variables globales
 tablets_data = {}
 km_reports = {}
+impresiones_reports = {}
 pagos_conductores = {}
 documentos_conductores = {}
 conductores_registrados = {}
@@ -115,7 +117,8 @@ def calcular_pagos_nuevo_modelo():
     detalles = []
     total_puntaje = 0
     for conductor_id, data in tablets_data.items():
-        total_impressions = int(data.get('total_impressions', 0) or 0)
+        total_impressions = int(impresiones_reports.get(conductor_id, {}).get(fecha_hoy,
+            data.get('total_impressions', 0) or 0))
         km_hoy = km_reports.get(conductor_id, {}).get(fecha_hoy, 0.0) or 0.0
         puntaje = calcular_puntaje_conductor(total_impressions, km_hoy)
         puntajes[conductor_id] = {
@@ -163,7 +166,7 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def cargar_datos():
-    global tablets_data, km_reports, pagos_conductores, documentos_conductores, conductores_registrados, version_actual, legal_docs
+    global tablets_data, km_reports, impresiones_reports, pagos_conductores, documentos_conductores, conductores_registrados, version_actual, legal_docs
     try:
         if os.path.exists(DATA_FILE):
             with open(DATA_FILE, 'r', encoding='utf-8') as f:
@@ -175,6 +178,11 @@ def cargar_datos():
                 content = f.read().strip()
                 km_reports = json.loads(content) if content else {}
             print(f"✅ Reportes de km cargados: {len(km_reports)}")
+        if os.path.exists(IMPRESIONES_FILE):
+            with open(IMPRESIONES_FILE, 'r', encoding='utf-8') as f:
+                content = f.read().strip()
+                impresiones_reports = json.loads(content) if content else {}
+            print(f"✅ Reportes de impresiones cargados: {len(impresiones_reports)}")
         if os.path.exists(PAGOS_FILE):
             with open(PAGOS_FILE, 'r', encoding='utf-8') as f:
                 content = f.read().strip()
@@ -213,6 +221,8 @@ def guardar_datos():
             json.dump(tablets_data, f, indent=2, ensure_ascii=False)
         with open(KM_FILE, 'w', encoding='utf-8') as f:
             json.dump(km_reports, f, indent=2, ensure_ascii=False)
+        with open(IMPRESIONES_FILE, 'w', encoding='utf-8') as f:
+            json.dump(impresiones_reports, f, indent=2, ensure_ascii=False)
         with open(PAGOS_FILE, 'w', encoding='utf-8') as f:
             json.dump(pagos_conductores, f, indent=2, ensure_ascii=False)
         with open(DOCUMENTOS_FILE, 'w', encoding='utf-8') as f:
@@ -285,14 +295,21 @@ def heartbeat():
         if device_id not in km_reports:
             km_reports[device_id] = {}
         km_acumulados_hoy = km_reports[device_id].get(fecha_hoy, 0)
-        km_reports[device_id][fecha_hoy] = km_acumulados_hoy + km_nuevos
+        # La tablet envía el acumulado diario (persistente). Se toma el máximo para
+        # tolerar envíos tardíos/offline sin doble conteo.
+        km_reports[device_id][fecha_hoy] = max(km_acumulados_hoy, km_nuevos)
+        imp_nuevas = int(data.get('impresiones', 0) or 0)
+        if device_id not in impresiones_reports:
+            impresiones_reports[device_id] = {}
+        imp_acumuladas_hoy = impresiones_reports[device_id].get(fecha_hoy, 0)
+        impresiones_reports[device_id][fecha_hoy] = max(imp_acumuladas_hoy, imp_nuevas)
         tablets_data[device_id] = {
             "device_id": device_id,
             "model": data.get('model', 'Unknown'),
             "android_version": data.get('android_version', 'Unknown'),
             "app_version": data.get('app_version', '1.0'),
             "timestamp": data.get('timestamp', str(datetime.datetime.now().timestamp())),
-            "total_impressions": data.get('impresiones', '0'),
+            "total_impressions": impresiones_reports[device_id][fecha_hoy],
             "uptime_hours": data.get('uptime_hours', '0'),
             "network_type": data.get('network_type', 'unknown'),
             "is_charging": data.get('is_charging', 'false'),
