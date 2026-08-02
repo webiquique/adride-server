@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚗 AdRide Iquique - Panel Cliente</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1100px; margin: 0 auto; }
+
+        /* Login */
+        #login-screen {
+            display: flex; justify-content: center; align-items: center;
+            min-height: 85vh; flex-direction: column; gap: 20px;
+        }
+        .login-card {
+            background: rgba(255,255,255,0.1); padding: 40px; border-radius: 15px;
+            backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2);
+            text-align: center; width: 100%; max-width: 400px;
+        }
+        .login-card h1 { color: #d228a9; font-size: 2em; margin-bottom: 10px; }
+        .login-card .sub { color: #a0a0a0; font-size: 1em; margin-bottom: 25px; }
+        .login-card input {
+            width: 100%; padding: 14px; border-radius: 8px; border: 1px solid #444;
+            background: #1b2838; color: #fff; font-size: 1.1em; margin-bottom: 15px; text-align: center;
+            letter-spacing: 2px; text-transform: uppercase;
+        }
+        .login-card input::placeholder { color: #6c757d; letter-spacing: normal; text-transform: none; }
+        .login-error { color: #ff6b6b; font-size: 0.9em; min-height: 1.2em; margin-bottom: 5px; }
+        button {
+            padding: 14px 30px; border: none; border-radius: 8px;
+            background: linear-gradient(135deg, #d228a9, #8b5cf6); color: #fff;
+            font-size: 1.1em; font-weight: 600; cursor: pointer; width: 100%;
+            transition: transform 0.2s ease, opacity 0.2s ease;
+        }
+        button:hover { transform: translateY(-2px); opacity: 0.9; }
+        button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        /* Dashboard */
+        #dashboard { display: none; }
+        header {
+            text-align: center; margin-bottom: 30px; padding: 20px;
+            background: rgba(255,255,255,0.1); border-radius: 15px; backdrop-filter: blur(10px);
+        }
+        header h1 { font-size: 1.8em; color: #d228a9; margin-bottom: 5px; }
+        header .cliente-nombre { font-size: 1.3em; margin-bottom: 5px; }
+        header .fecha-act { color: #a0a0a0; font-size: 0.9em; }
+        .header-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .logout {
+            background: rgba(255,255,255,0.1); color: #fff; width: auto;
+            padding: 8px 18px; font-size: 0.9em; border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .stats-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px; margin-bottom: 30px;
+        }
+        .stat-card {
+            background: rgba(255,255,255,0.1); padding: 25px; border-radius: 15px;
+            text-align: center; backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2); transition: transform 0.3s ease;
+        }
+        .stat-card:hover { transform: translateY(-5px); }
+        .stat-card h3 { font-size: 2.6em; color: #d228a9; margin-bottom: 8px; }
+        .stat-card p { color: #a0a0a0; font-size: 1em; }
+
+        .card {
+            background: rgba(255,255,255,0.1); padding: 25px; border-radius: 15px;
+            margin-bottom: 25px; backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .card h2 { margin-bottom: 20px; color: #d228a9; font-size: 1.5em; }
+        .campana {
+            background: rgba(0,0,0,0.3); border-radius: 10px; padding: 18px;
+            margin-bottom: 15px; border: 1px solid rgba(255,255,255,0.08);
+        }
+        .campana:last-child { margin-bottom: 0; }
+        .campana-top { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+        .campana-nombre { font-size: 1.2em; font-weight: 600; }
+        .campana-nums { color: #a0a0a0; font-size: 0.95em; }
+        .campana-nums strong { color: #fff; }
+        .barra { height: 14px; background: rgba(255,255,255,0.1); border-radius: 7px; overflow: hidden; }
+        .barra-fill { height: 100%; background: linear-gradient(90deg, #d228a9, #8b5cf6); border-radius: 7px; transition: width 0.6s ease; }
+        .campana-pct { margin-top: 8px; font-size: 0.9em; color: #a0a0a0; text-align: right; }
+        .vacio { color: #a0a0a0; text-align: center; padding: 20px; }
+        .badge-completa {
+            background: #28a745; color: #fff; padding: 3px 10px; border-radius: 12px;
+            font-size: 0.8em; font-weight: 600;
+        }
+        #loading { text-align: center; padding: 40px; color: #a0a0a0; }
+        .spin {
+            display: inline-block; width: 30px; height: 30px; border: 4px solid rgba(255,255,255,0.2);
+            border-top-color: #d228a9; border-radius: 50%; animation: girar 0.8s linear infinite;
+            margin-bottom: 10px;
+        }
+        @keyframes girar { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- LOGIN -->
+        <div id="login-screen">
+            <div class="login-card">
+                <h1>🚗 AdRide Iquique</h1>
+                <p class="sub">Panel de clientes — ingresa tu código para ver tus cifras</p>
+                <input type="text" id="codigo-input" placeholder="Tu código de cliente" autocomplete="off">
+                <div class="login-error" id="login-error"></div>
+                <button id="btn-login">Ingresar</button>
+            </div>
+        </div>
+
+        <!-- DASHBOARD -->
+        <div id="dashboard">
+            <header>
+                <div class="header-row">
+                    <div>
+                        <h1>🚗 AdRide Iquique</h1>
+                        <p class="cliente-nombre" id="cliente-nombre">—</p>
+                        <p class="fecha-act" id="fecha-act">—</p>
+                    </div>
+                    <button class="logout" id="btn-logout">Cerrar sesión</button>
+                </div>
+            </header>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3 id="st-impresiones">0</h3>
+                    <p>Impresiones de tu campaña</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="st-progreso">0%</h3>
+                    <p>Avance del paquete contratado</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="st-vehiculos">0/0</h3>
+                    <p>Vehículos en línea</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="st-km">0</h3>
+                    <p>Km recorridos hoy</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>📊 Detalle por campaña</h2>
+                <div id="campanas-list">
+                    <div id="loading"><div class="spin"></div>Cargando...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API = '';
+        let token = localStorage.getItem('adride_token') || '';
+        let timer = null;
+
+        const $ = id => document.getElementById(id);
+
+        function mostrarLogin() {
+            $('login-screen').style.display = 'flex';
+            $('dashboard').style.display = 'none';
+        }
+        function mostrarDashboard(cliente) {
+            $('login-screen').style.display = 'none';
+            $('dashboard').style.display = 'block';
+            $('cliente-nombre').textContent = cliente.nombre || 'Cliente';
+        }
+
+        async function cargarDashboard() {
+            const cont = $('campanas-list');
+            try {
+                const res = await fetch(API + '/api/clientes/dashboard', { headers: { 'X-Token': token } });
+                if (!res.ok) {
+                    if (res.status === 401) {
+                        localStorage.removeItem('adride_token');
+                        token = '';
+                        clearInterval(timer);
+                        mostrarLogin();
+                    }
+                    return;
+                }
+                const data = await res.json();
+                $('fecha-act').textContent = 'Actualizado: ' + data.fecha;
+                $('st-impresiones').textContent = data.total_impresiones.toLocaleString('es-CL');
+                $('st-progreso').textContent = data.porcentaje_total + '%';
+                $('st-vehiculos').textContent = data.vehiculos_online + '/' + data.vehiculos_total;
+                $('st-km').textContent = data.km_hoy.toLocaleString('es-CL');
+
+                if (!data.campanas.length) {
+                    cont.innerHTML = '<p class="vacio">Aún no hay campañas asignadas a tu cuenta.</p>';
+                    return;
+                }
+                cont.innerHTML = data.campanas.map(c => {
+                    const pct = Math.min(c.porcentaje, 100);
+                    const completa = c.porcentaje >= 100;
+                    return `
+                        <div class="campana">
+                            <div class="campana-top">
+                                <span class="campana-nombre">${c.nombre}</span>
+                                <span class="campana-nums"><strong>${c.impresiones.toLocaleString('es-CL')}</strong> / ${c.impresiones_contratadas.toLocaleString('es-CL')} impresiones ${completa ? '<span class="badge-completa">Completa</span>' : ''}</span>
+                            </div>
+                            <div class="barra"><div class="barra-fill" style="width:${pct}%"></div></div>
+                            <div class="campana-pct">${c.porcentaje}% del paquete</div>
+                        </div>`;
+                }).join('');
+            } catch (e) {
+                cont.innerHTML = '<p class="vacio">Error de conexión. Reintentando...</p>';
+            }
+        }
+
+        async function iniciarSesion() {
+            const codigo = $('codigo-input').value.trim();
+            $('login-error').textContent = '';
+            if (!codigo) { $('login-error').textContent = 'Ingresa tu código'; return; }
+            const btn = $('btn-login');
+            btn.disabled = true; btn.textContent = 'Verificando...';
+            try {
+                const res = await fetch(API + '/api/clientes/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ codigo })
+                });
+                const data = await res.json();
+                if (!res.ok) { $('login-error').textContent = data.message || 'Código inválido'; return; }
+                token = data.token;
+                localStorage.setItem('adride_token', token);
+                mostrarDashboard(data.cliente);
+                cargarDashboard();
+                timer = setInterval(cargarDashboard, 30000);
+            } catch (e) {
+                $('login-error').textContent = 'Error de conexión';
+            } finally {
+                btn.disabled = false; btn.textContent = 'Ingresar';
+            }
+        }
+
+        $('btn-login').addEventListener('click', iniciarSesion);
+        $('codigo-input').addEventListener('keydown', e => { if (e.key === 'Enter') iniciarSesion(); });
+        $('btn-logout').addEventListener('click', () => {
+            clearInterval(timer);
+            localStorage.removeItem('adride_token');
+            token = '';
+            mostrarLogin();
+        });
+
+        (async function init() {
+            if (!token) { mostrarLogin(); return; }
+            try {
+                const res = await fetch(API + '/api/clientes/dashboard', { headers: { 'X-Token': token } });
+                if (!res.ok) { localStorage.removeItem('adride_token'); token = ''; mostrarLogin(); return; }
+                const data = await res.json();
+                mostrarDashboard(data.cliente);
+                cargarDashboard();
+                timer = setInterval(cargarDashboard, 30000);
+            } catch (e) {
+                mostrarLogin();
+            }
+        })();
+    </script>
+</body>
+</html>

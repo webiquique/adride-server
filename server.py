@@ -4,6 +4,7 @@ import json
 import os
 import datetime
 import requests
+import secrets
 from werkzeug.utils import secure_filename
 import time
 
@@ -51,6 +52,7 @@ DOCUMENTOS_FILE = 'documentos_conductores.json'
 REGISTRO_FILE = 'conductores_registrados.json'
 VERSION_FILE = 'version_actual.json'
 LEGAL_FILE = 'legal_docs.json'
+CLIENTES_FILE = 'clientes.json'
 
 # Variables globales
 tablets_data = {}
@@ -59,6 +61,8 @@ impresiones_reports = {}
 pagos_conductores = {}
 documentos_conductores = {}
 conductores_registrados = {}
+clientes_data = {}
+client_sessions = {}
 version_actual = {"version_code": 1, "version_name": "1.0.0", "apk_filename": None}
 legal_docs = {
     "terminos_condiciones": "### Términos y Condiciones\n\nTexto pendiente de publicación.",
@@ -166,7 +170,7 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def cargar_datos():
-    global tablets_data, km_reports, impresiones_reports, pagos_conductores, documentos_conductores, conductores_registrados, version_actual, legal_docs
+    global tablets_data, km_reports, impresiones_reports, pagos_conductores, documentos_conductores, conductores_registrados, version_actual, legal_docs, clientes_data
     try:
         if os.path.exists(DATA_FILE):
             with open(DATA_FILE, 'r', encoding='utf-8') as f:
@@ -208,6 +212,11 @@ def cargar_datos():
                 content = f.read().strip()
                 legal_docs.update(json.loads(content) if content else {})
             print(f"✅ Documentos legales cargados")
+        if os.path.exists(CLIENTES_FILE):
+            with open(CLIENTES_FILE, 'r', encoding='utf-8') as f:
+                content = f.read().strip()
+                clientes_data = json.loads(content) if content else {}
+            print(f"✅ Clientes cargados: {len(clientes_data)}")
     except Exception as e:
         print(f"⚠️ Error cargando datos: {e}")
         tablets_data = {}
@@ -233,8 +242,21 @@ def guardar_datos():
             json.dump(version_actual, f, indent=2, ensure_ascii=False)
         with open(LEGAL_FILE, 'w', encoding='utf-8') as f:
             json.dump(legal_docs, f, indent=2, ensure_ascii=False)
+        with open(CLIENTES_FILE, 'w', encoding='utf-8') as f:
+            json.dump(clientes_data, f, indent=2, ensure_ascii=False)
     except Exception as e:
         print(f"❌ Error guardando datos: {e}")
+
+def impresiones_por_campana():
+    """Agrega impresiones por nombre de campaña desde los heartbeats de todas las tablets."""
+    agg = {}
+    for data in tablets_data.values():
+        for camp, n in (data.get('ad_impressions') or {}).items():
+            try:
+                agg[camp] = agg.get(camp, 0) + int(n)
+            except (TypeError, ValueError):
+                pass
+    return agg
 
 def calcular_bono_desempeno(conductor_id, data):
     bono = 0.0
@@ -1103,6 +1125,173 @@ def admin_upload_apk():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # ============================================
+# ✅ DASHBOARD DE CLIENTES (login por código)
+# ============================================
+@app.route('/cliente', methods=['GET'])
+def pagina_cliente():
+    return send_from_directory('.', 'cliente.html')
+
+@app.route('/api/clientes/login', methods=['POST'])
+def cliente_login():
+    try:
+        data = request.get_json() or {}
+        codigo = str(data.get('codigo', '')).strip().upper()
+        if not codigo:
+            return jsonify({'status': 'error', 'message': 'Ingresa tu código'}), 400
+        cliente = next((c for c in clientes_data.values() if str(c.get('codigo', '')).strip().upper() == codigo), None)
+        if not cliente:
+            return jsonify({'status': 'error', 'message': 'Código inválido'}), 401
+        token = secrets.token_hex(16)
+        client_sessions[token] = {
+            'cliente_id': cliente.get('id'),
+            'expira': time.time() + 12 * 3600
+        }
+        return jsonify({'status': 'ok', 'token': token, 'cliente': info_cliente(cliente)}), 200
+    except Exception as e:
+        print(f"❌ Error login cliente: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+def info_cliente(cliente):
+    campanas = []
+    for c in cliente.get('campanas', []):
+        if isinstance(c, dict):
+            campanas.append({
+                'nombre': c.get('nombre', ''),
+                'impresiones_contratadas': int(c.get('impresiones_contratadas', 0) or 0)
+            })
+        else:
+            campanas.append({'nombre': str(c), 'impresiones_contratadas': 0})
+    return {
+        'id': cliente.get('id'),
+        'nombre': cliente.get('nombre', ''),
+        'email': cliente.get('email', ''),
+        'campanas': campanas,
+        'fecha_inicio': cliente.get('fecha_inicio', ''),
+        'duracion_meses': cliente.get('duracion_meses', 0)
+    }
+
+def get_cliente_by_token():
+    token = request.headers.get('X-Token') or request.args.get('token')
+    if not token:
+        return None
+    s = client_sessions.get(token)
+    if not s:
+        return None
+    if s['expira'] < time.time():
+        del client_sessions[token]
+        return None
+    return clientes_data.get(s.get('cliente_id'))
+
+@app.route('/api/clientes/dashboard', methods=['GET'])
+def cliente_dashboard():
+    try:
+        cliente = get_cliente_by_token()
+        if not cliente:
+            return jsonify({'status': 'error', 'message': 'Sesión inválida o expirada. Inicia sesión de nuevo.'}), 401
+
+        imp_por_campana = impresiones_por_campana()
+        fecha_hoy = datetime.datetime.now().strftime('%Y-%m-%d')
+
+        campanas = []
+        total_contratadas = 0
+        total_actuales = 0
+        for c in info_cliente(cliente)['campanas']:
+            nombre = c['nombre']
+            contratadas = c['impresiones_contratadas']
+            actuales = int(imp_por_campana.get(nombre, 0) or 0)
+            total_contratadas += contratadas
+            total_actuales += actuales
+            campanas.append({
+                'nombre': nombre,
+                'impresiones': actuales,
+                'impresiones_contratadas': contratadas,
+                'porcentaje': round(actuales / contratadas * 100, 1) if contratadas > 0 else 0
+            })
+        campanas.sort(key=lambda x: x['impresiones'], reverse=True)
+
+        km_hoy = sum(float(k.get(fecha_hoy, 0) or 0) for k in km_reports.values())
+        ahora_ts = datetime.datetime.now().timestamp()
+        online = sum(1 for t in tablets_data.values() if (ahora_ts - float(t.get('last_seen', 0) or 0)) < 300)
+        impresiones_hoy = sum(int(impresiones_reports.get(cid, {}).get(fecha_hoy, 0) or 0) for cid in tablets_data)
+
+        return jsonify({
+            'status': 'ok',
+            'cliente': info_cliente(cliente),
+            'campanas': campanas,
+            'total_impresiones': total_actuales,
+            'total_contratadas': total_contratadas,
+            'porcentaje_total': round(total_actuales / total_contratadas * 100, 1) if total_contratadas > 0 else 0,
+            'impresiones_hoy': impresiones_hoy,
+            'km_hoy': round(km_hoy, 1),
+            'vehiculos_online': online,
+            'vehiculos_total': len(tablets_data),
+            'fecha': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        }), 200
+    except Exception as e:
+        print(f"❌ Error dashboard cliente: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/admin/clientes', methods=['GET'])
+def admin_listar_clientes():
+    try:
+        api_key = request.headers.get('X-API-Key')
+        if api_key != 'adride_iquique_2024_secreto':
+            return jsonify({'status': 'error', 'message': 'API Key inválida'}), 401
+        lista = []
+        for cid, c in clientes_data.items():
+            info = info_cliente(c)
+            info['codigo'] = c.get('codigo', '')
+            lista.append(info)
+        return jsonify({'status': 'ok', 'clientes': lista, 'total': len(lista)}), 200
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/admin/clientes', methods=['POST'])
+def admin_guardar_cliente():
+    try:
+        api_key = request.headers.get('X-API-Key')
+        if api_key != 'adride_iquique_2024_secreto':
+            return jsonify({'status': 'error', 'message': 'API Key inválida'}), 401
+        data = request.get_json() or {}
+        cliente_id = str(data.get('id', '')).strip()
+        if not cliente_id:
+            return jsonify({'status': 'error', 'message': 'id requerido'}), 400
+        nombre = str(data.get('nombre', '')).strip()
+        codigo = str(data.get('codigo', '')).strip().upper()
+        if not nombre or not codigo:
+            return jsonify({'status': 'error', 'message': 'nombre y codigo requeridos'}), 400
+        clientes_data[cliente_id] = {
+            'id': cliente_id,
+            'nombre': nombre,
+            'codigo': codigo,
+            'email': data.get('email', ''),
+            'campanas': data.get('campanas', []),
+            'fecha_inicio': data.get('fecha_inicio', ''),
+            'duracion_meses': int(data.get('duracion_meses', 0) or 0)
+        }
+        guardar_datos()
+        print(f"👥 Cliente guardado: {cliente_id} - {nombre}")
+        return jsonify({'status': 'ok', 'message': f'Cliente {nombre} guardado'}), 200
+    except Exception as e:
+        print(f"❌ Error guardando cliente: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/admin/clientes/<cliente_id>', methods=['DELETE'])
+def admin_eliminar_cliente(cliente_id):
+    try:
+        api_key = request.headers.get('X-API-Key')
+        if api_key != 'adride_iquique_2024_secreto':
+            return jsonify({'status': 'error', 'message': 'API Key inválida'}), 401
+        if cliente_id not in clientes_data:
+            return jsonify({'status': 'error', 'message': 'Cliente no encontrado'}), 404
+        nombre = clientes_data[cliente_id].get('nombre', cliente_id)
+        del clientes_data[cliente_id]
+        guardar_datos()
+        return jsonify({'status': 'ok', 'message': f'Cliente {nombre} eliminado'}), 200
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+# ============================================
 # ✅ ADMIN - LIMPIAR DATOS DE PRUEBA
 # ============================================
 @app.route('/api/admin/limpiar-test', methods=['POST'])
@@ -1112,7 +1301,7 @@ def limpiar_test():
         if api_key != 'adride_iquique_2024_secreto':
             return jsonify({'status': 'error', 'message': 'API Key inválida'}), 401
 
-        global tablets_data, km_reports, impresiones_reports, pagos_conductores, documentos_conductores, conductores_registrados
+        global tablets_data, km_reports, impresiones_reports, pagos_conductores, documentos_conductores, conductores_registrados, clientes_data
 
         antes_docs = len(documentos_conductores)
         documentos_conductores = {k: v for k, v in documentos_conductores.items() if not k.startswith('test_')}
@@ -1138,9 +1327,13 @@ def limpiar_test():
         conductores_registrados = {k: v for k, v in conductores_registrados.items() if not k.startswith('test_')}
         borrados_reg = antes_reg - len(conductores_registrados)
 
+        antes_clientes = len(clientes_data)
+        clientes_data = {k: v for k, v in clientes_data.items() if not k.startswith('test_')}
+        borrados_clientes = antes_clientes - len(clientes_data)
+
         guardar_datos()
 
-        print(f"🧹 Limpieza completada: {borrados_docs} docs, {borrados_pagos} pagos, {borrados_tablets} tablets, {borrados_km} km, {borrados_imp} impresiones, {borrados_reg} registros")
+        print(f"🧹 Limpieza completada: {borrados_docs} docs, {borrados_pagos} pagos, {borrados_tablets} tablets, {borrados_km} km, {borrados_imp} impresiones, {borrados_reg} registros, {borrados_clientes} clientes")
         return jsonify({
             'status': 'ok',
             'message': 'Datos de prueba eliminados',
@@ -1149,7 +1342,9 @@ def limpiar_test():
                 'pagos': borrados_pagos,
                 'tablets': borrados_tablets,
                 'km_reports': borrados_km,
-                'registros': borrados_reg
+                'impresiones_reports': borrados_imp,
+                'registros': borrados_reg,
+                'clientes': borrados_clientes
             }
         }), 200
     except Exception as e:
