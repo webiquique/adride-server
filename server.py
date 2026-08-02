@@ -1112,7 +1112,7 @@ def limpiar_test():
         if api_key != 'adride_iquique_2024_secreto':
             return jsonify({'status': 'error', 'message': 'API Key inválida'}), 401
 
-        global tablets_data, km_reports, pagos_conductores, documentos_conductores, conductores_registrados
+        global tablets_data, km_reports, impresiones_reports, pagos_conductores, documentos_conductores, conductores_registrados
 
         antes_docs = len(documentos_conductores)
         documentos_conductores = {k: v for k, v in documentos_conductores.items() if not k.startswith('test_')}
@@ -1130,13 +1130,17 @@ def limpiar_test():
         km_reports = {k: v for k, v in km_reports.items() if not k.startswith('test_')}
         borrados_km = antes_km - len(km_reports)
 
+        antes_imp = len(impresiones_reports)
+        impresiones_reports = {k: v for k, v in impresiones_reports.items() if not k.startswith('test_')}
+        borrados_imp = antes_imp - len(impresiones_reports)
+
         antes_reg = len(conductores_registrados)
         conductores_registrados = {k: v for k, v in conductores_registrados.items() if not k.startswith('test_')}
         borrados_reg = antes_reg - len(conductores_registrados)
 
         guardar_datos()
 
-        print(f"🧹 Limpieza completada: {borrados_docs} docs, {borrados_pagos} pagos, {borrados_tablets} tablets, {borrados_km} km, {borrados_reg} registros")
+        print(f"🧹 Limpieza completada: {borrados_docs} docs, {borrados_pagos} pagos, {borrados_tablets} tablets, {borrados_km} km, {borrados_imp} impresiones, {borrados_reg} registros")
         return jsonify({
             'status': 'ok',
             'message': 'Datos de prueba eliminados',
