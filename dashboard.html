@@ -182,9 +182,9 @@
 
         <div class="card">
             <h2>💰 Cálculo de Pagos (Diario)</h2>
-            <p style="color: #a0a0a0; margin-bottom: 15px;">
+            <p id="formula-pagos" style="color: #a0a0a0; margin-bottom: 15px;">
                 Fórmula: <strong>Fondo diario = 40% del ingreso diario</strong> repartido por puntaje
-                <br>📈 Ingreso diario = $250.000 / 30 días | 🎯 Reparto: impresiones + (km − 50) × 10
+                <br>📈 Ingreso diario = $309.400 / 30 días | 🎯 Reparto: impresiones + (km − 50) × 10
                 <br>🏛️ Retención de impuesto: <strong>12.5% sobre el pago bruto</strong>
                 <br><strong style="color: #FF9800;">⚠️ El pago se calcula sobre el día actual. Se procesa al cierre mensual.</strong>
             </p>
@@ -491,6 +491,15 @@
                 const ingresoDiario = data.ingreso_diario ?? 0;
                 const retencionAdride = data.retencion_adride ?? 0;
                 const porcentajePayout = data.porcentaje_payout ?? '0%';
+                const avisosContratados = data.avisos_contratados ?? 0;
+
+                const formulaEl = document.getElementById('formula-pagos');
+                if (formulaEl) {
+                    formulaEl.innerHTML = `Fórmula: <strong>Fondo diario = 40% del ingreso diario</strong> repartido por puntaje
+                        <br>📈 Ingreso diario = $${(ingresoDiario * 30 || 0).toLocaleString('es-CL')} / 30 días (${avisosContratados} avisos) | 🎯 Reparto: impresiones + (km − 50) × 10
+                        <br>🏛️ Retención de impuesto: <strong>12.5% sobre el pago bruto</strong>
+                        <br><strong style="color: #FF9800;">⚠️ El pago se calcula sobre el día actual. Se procesa al cierre mensual.</strong>`;
+                }
 
                 html += `<div style="margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                     <div style="padding: 15px; background: #e8f5e9; border-radius: 8px; border-left: 4px solid #4CAF50;">
