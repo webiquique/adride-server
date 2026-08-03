@@ -1157,10 +1157,12 @@ def info_cliente(cliente):
         if isinstance(c, dict):
             campanas.append({
                 'nombre': c.get('nombre', ''),
+                'negocio': c.get('negocio', ''),
+                'url': c.get('url', ''),
                 'impresiones_contratadas': int(c.get('impresiones_contratadas', 0) or 0)
             })
         else:
-            campanas.append({'nombre': str(c), 'impresiones_contratadas': 0})
+            campanas.append({'nombre': str(c), 'negocio': '', 'impresiones_contratadas': 0})
     return {
         'id': cliente.get('id'),
         'nombre': cliente.get('nombre', ''),
@@ -1198,11 +1200,12 @@ def cliente_dashboard():
         for c in info_cliente(cliente)['campanas']:
             nombre = c['nombre']
             contratadas = c['impresiones_contratadas']
-            actuales = int(imp_por_campana.get(nombre, 0) or 0)
+            actuales = int(imp_por_campana.get(c.get('negocio') or nombre, 0) or 0)
             total_contratadas += contratadas
             total_actuales += actuales
             campanas.append({
                 'nombre': nombre,
+                'negocio': c.get('negocio', ''),
                 'impresiones': actuales,
                 'impresiones_contratadas': contratadas,
                 'porcentaje': round(actuales / contratadas * 100, 1) if contratadas > 0 else 0
