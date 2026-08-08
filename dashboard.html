@@ -183,8 +183,9 @@
         <div class="card">
             <h2>💰 Cálculo de Pagos (Diario)</h2>
             <p id="formula-pagos" style="color: #a0a0a0; margin-bottom: 15px;">
-                Fórmula: <strong>Fondo diario = 40% del ingreso diario</strong> repartido por puntaje
-                <br>📈 Ingreso diario = $309.400 / 30 días | 🎯 Reparto: impresiones + (km − 50) × 10
+                Fórmula: <strong>Pago diario = km × $15 + impresiones × $30</strong>, tope 40% del ingreso diario
+                <br>📈 Ingreso diario = $309.400 / 30 días | 🚗 Cada km suma $15 y cada impresión $30
+                <br>⛔ Si el devengo total supera el fondo diario, se escala proporcionalmente
                 <br>🏛️ Retención de impuesto: <strong>12.5% sobre el pago bruto</strong>
                 <br><strong style="color: #FF9800;">⚠️ El pago se calcula sobre el día actual. Se procesa al cierre mensual.</strong>
             </p>
@@ -468,16 +469,16 @@
                 }
 
                 let html = `<table><thead><tr>
-                    <th>Conductor</th><th>Impresiones</th><th>Km</th><th>Puntaje</th>
-                    <th>Bruto</th><th>Impuesto (12.5%)</th><th>NETO</th>
-                </tr></thead><tbody>`;
+                        <th>Conductor</th><th>Impresiones</th><th>Km</th><th>Devengo</th>
+                        <th>Bruto</th><th>Impuesto (12.5%)</th><th>NETO</th>
+                    </tr></thead><tbody>`;
 
                 data.detalles.forEach(p => {
                     html += `<tr>
                         <td>${escapeHtml((p.conductor_id || '').substring(0,12))}...</td>
                         <td>${p.total_impressions ?? 0}</td>
                         <td style="color: #9C27B0;">${(p.km_acumulados_hoy ?? 0).toFixed(2)} km</td>
-                        <td>${(p.puntaje ?? 0).toFixed(0)}</td>
+                        <td>$${(p.devengo ?? 0).toLocaleString('es-CL')}</td>
                         <td style="color: #2196F3;">$${(p.pago_bruto ?? 0).toLocaleString('es-CL')}</td>
                         <td style="color: #FF9800;">-$${(p.impuesto_retenido ?? 0).toLocaleString('es-CL')}</td>
                         <td style="color: #4CAF50; font-weight: bold;">$${(p.pago_neto ?? 0).toLocaleString('es-CL')}</td>
@@ -495,8 +496,9 @@
 
                 const formulaEl = document.getElementById('formula-pagos');
                 if (formulaEl) {
-                    formulaEl.innerHTML = `Fórmula: <strong>Fondo diario = 40% del ingreso diario</strong> repartido por puntaje
-                        <br>📈 Ingreso diario = $${(ingresoDiario * 30 || 0).toLocaleString('es-CL')} / 30 días (${avisosContratados} avisos) | 🎯 Reparto: impresiones + (km − 50) × 10
+                    formulaEl.innerHTML = `Fórmula: <strong>Pago diario = km × $15 + impresiones × $30</strong>, tope 40% del ingreso diario
+                        <br>📈 Ingreso diario = $${(ingresoDiario * 30 || 0).toLocaleString('es-CL')} / 30 días (${avisosContratados} avisos) | 🚗 Cada km suma $15 y cada impresión $30
+                        <br>⛔ Si el devengo total supera el fondo diario ($${fondoDiario.toLocaleString('es-CL')}), se escala proporcionalmente
                         <br>🏛️ Retención de impuesto: <strong>12.5% sobre el pago bruto</strong>
                         <br><strong style="color: #FF9800;">⚠️ El pago se calcula sobre el día actual. Se procesa al cierre mensual.</strong>`;
                 }

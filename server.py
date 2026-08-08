@@ -93,11 +93,8 @@ config["porcentaje_para_adride"] = 0.60
 config["dias_mes"] = 30
 config["bono_horas_pico_porcentaje"] = 0.20
 
-# ✅ MODELO NUEVO DE PAGO: fondo diario 40% del ingreso, reparto por puntaje, retención 12.5%
+# ✅ MODELO DE PAGO: pago mixto (km + impresiones) con tope al 40% del ingreso diario
 config["tasa_impuesto_conductor"] = 0.125          # retención legal 12.5%
-config["km_minimo_puntaje"] = 50                    # sobre este km, cada km extra suma
-config["peso_km_extra_puntaje"] = 10                # 10 pts por km extra
-config["peso_impresion_puntaje"] = 1                # 1 pt por impresión
 
 fondo_conductores_mensual = config["presupuesto_total_mensual"] * config["porcentaje_para_conductores"]
 fondo_conductores_diario = fondo_conductores_mensual / config["dias_mes"]
@@ -105,37 +102,43 @@ fondo_conductores_diario = fondo_conductores_mensual / config["dias_mes"]
 def calcular_avisos_contratados():
     return int(config.get("avisos_contratados", 5))
 
-def calcular_puntaje_conductor(total_impressions, km_hoy):
-    return (total_impressions * config["peso_impresion_puntaje"]
-            + max(0, km_hoy - config["km_minimo_puntaje"]) * config["peso_km_extra_puntaje"])
+def calcular_devengo_conductor(total_impressions, km_hoy):
+    """Devengo diario = km × tarifa_km + impresiones × valor_impresion.
+    Los km SIEMPRE suman al devengo (no hay umbral mínimo)."""
+    return (km_hoy * config["tarifa_km"]
+            + total_impressions * config["valor_por_impresion"])
 
 def calcular_pagos_nuevo_modelo():
-    """Fondo diario = 40% del ingreso diario. Reparto proporcional al puntaje
-    (impresiones + km>50). Retención de impuesto 12.5% sobre el bruto."""
+    """Pago diario = km×$15 + impresiones×$30, con tope al 40% del ingreso diario.
+    Si el total devengado supera el fondo diario, se escala proporcionalmente
+    para respetar el tope. Retención de impuesto 12.5% sobre el bruto."""
     fecha_hoy = datetime.datetime.now().strftime('%Y-%m-%d')
     avisos = calcular_avisos_contratados()
     ingreso_diario = config["presupuesto_total_mensual"] / config["dias_mes"]
     fondo_diario = ingreso_diario * config["porcentaje_para_conductores"]
 
-    puntajes = {}
+    devengos = {}
     detalles = []
-    total_puntaje = 0
+    total_devengo = 0
     for conductor_id, data in tablets_data.items():
         total_impressions = int(impresiones_reports.get(conductor_id, {}).get(fecha_hoy,
             data.get('total_impressions', 0) or 0))
         km_hoy = km_reports.get(conductor_id, {}).get(fecha_hoy, 0.0) or 0.0
-        puntaje = calcular_puntaje_conductor(total_impressions, km_hoy)
-        puntajes[conductor_id] = {
+        devengo = calcular_devengo_conductor(total_impressions, km_hoy)
+        devengos[conductor_id] = {
             'impresiones': total_impressions,
             'km_hoy': km_hoy,
-            'puntaje': puntaje
+            'devengo': devengo
         }
-        total_puntaje += puntaje
+        total_devengo += devengo
+
+    # Tope 40%: si el devengo total supera el fondo, se escala proporcionalmente
+    factor = min(1.0, fondo_diario / total_devengo) if total_devengo > 0 else 0.0
 
     payout_total = 0
     impuesto_total = 0
-    for conductor_id, p in puntajes.items():
-        pago_bruto = (p['puntaje'] / total_puntaje * fondo_diario) if total_puntaje > 0 else 0
+    for conductor_id, p in devengos.items():
+        pago_bruto = p['devengo'] * factor
         impuesto = pago_bruto * config["tasa_impuesto_conductor"]
         pago_neto = pago_bruto - impuesto
         payout_total += pago_neto
@@ -144,7 +147,8 @@ def calcular_pagos_nuevo_modelo():
             'conductor_id': conductor_id,
             'total_impressions': p['impresiones'],
             'km_acumulados_hoy': round(p['km_hoy'], 2),
-            'puntaje': round(p['puntaje'], 2),
+            'devengo': round(p['devengo'], 2),
+            'puntaje': round(p['devengo'], 2),  # retrocompatibilidad con el dashboard
             'pago_bruto': round(pago_bruto, 2),
             'impuesto_retenido': round(impuesto, 2),
             'pago_neto': round(pago_neto, 2)
@@ -753,10 +757,9 @@ def guardar_documento_legal(tipo):
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # ============================================
-# ✅ CÁLCULO DE PAGOS - MODELO NUEVO
-# Fondo diario = 40% del ingreso diario (avisos × $50.000 / 30 días)
-# Reparto proporcional al puntaje: impresiones + km>50 × 10
-# Retención de impuesto 12.5% sobre el pago bruto
+# ✅ CÁLCULO DE PAGOS - MODELO MIXTO
+# Pago diario = km×$15 + impresiones×$30, con tope al 40% del ingreso diario
+# (avisos × precio / 30 días). Retención de impuesto 12.5% sobre el bruto
 # ============================================
 @app.route('/api/payments/calculate/<conductor_id>', methods=['GET'])
 def calcular_pago_conductor(conductor_id):
@@ -779,6 +782,7 @@ def calcular_pago_conductor(conductor_id):
             'conductor_id': conductor_id,
             'impresiones': detalle['total_impressions'],
             'kilometros': detalle['km_acumulados_hoy'],
+            'devengo': detalle['devengo'],
             'puntaje': detalle['puntaje'],
             'ingreso_diario': resumen['ingreso_diario'],
             'fondo_diario': resumen['fondo_diario'],
@@ -857,9 +861,9 @@ def export_csv():
         now = datetime.datetime.now()
         fecha_hoy = now.strftime('%Y-%m-%d')
         resumen = calcular_pagos_nuevo_modelo()
-        csv_content = "conductor_id,impresiones,km,puntaje,pago_bruto,impuesto_12.5,pago_neto,fecha\n"
+        csv_content = "conductor_id,impresiones,km,devengo,pago_bruto,impuesto_12.5,pago_neto,fecha\n"
         for d in resumen['detalles']:
-            csv_content += f"{d['conductor_id']},{d['total_impressions']},{d['km_acumulados_hoy']},{d['puntaje']},{round(d['pago_bruto'])},{round(d['impuesto_retenido'])},{round(d['pago_neto'])},{fecha_hoy}\n"
+            csv_content += f"{d['conductor_id']},{d['total_impressions']},{d['km_acumulados_hoy']},{d['devengo']},{round(d['pago_bruto'])},{round(d['impuesto_retenido'])},{round(d['pago_neto'])},{fecha_hoy}\n"
         return app.response_class(response=csv_content, status=200, mimetype='text/csv', headers={'Content-Disposition': f'attachment;filename=pagos_adride_{fecha_hoy}.csv'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
