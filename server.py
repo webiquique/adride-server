@@ -1359,6 +1359,34 @@ def limpiar_test():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
+@app.route('/api/admin/limpiar-dashboard', methods=['POST'])
+def limpiar_dashboard():
+    """Resetea los datos vivos del dashboard (tablets, km, impresiones) sin
+    tocar registros de conductores, documentos, pagos ni clientes."""
+    try:
+        api_key = request.headers.get('X-API-Key')
+        if api_key != 'adride_iquique_2024_secreto':
+            return jsonify({'status': 'error', 'message': 'API Key inválida'}), 401
+
+        global tablets_data, km_reports, impresiones_reports
+
+        borrados = {
+            'tablets': len(tablets_data),
+            'km_reports': sum(len(v) for v in km_reports.values()),
+            'impresiones_reports': sum(len(v) for v in impresiones_reports.values())
+        }
+        tablets_data = {}
+        km_reports = {}
+        impresiones_reports = {}
+        guardar_datos()
+
+        print(f"🧹 Dashboard limpiado: {borrados}")
+        return jsonify({'status': 'ok', 'message': 'Dashboard limpiado', 'borrados': borrados}), 200
+    except Exception as e:
+        print(f"❌ Error limpiando dashboard: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
 cargar_datos()
 
 if __name__ == '__main__':
