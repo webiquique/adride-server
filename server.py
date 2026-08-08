@@ -94,7 +94,7 @@ config["dias_mes"] = 30
 config["bono_horas_pico_porcentaje"] = 0.20
 
 # ✅ MODELO DE PAGO: pago mixto (km + impresiones) con tope al 40% del ingreso diario
-config["tasa_impuesto_conductor"] = 0.125          # retención legal 12.5%
+config["tasa_impuesto_conductor"] = 0.1525         # retención legal 15.25% (SII 2026)
 
 fondo_conductores_mensual = config["presupuesto_total_mensual"] * config["porcentaje_para_conductores"]
 fondo_conductores_diario = fondo_conductores_mensual / config["dias_mes"]
@@ -111,7 +111,7 @@ def calcular_devengo_conductor(total_impressions, km_hoy):
 def calcular_pagos_nuevo_modelo():
     """Pago diario = km×$15 + impresiones×$30, con tope al 40% del ingreso diario.
     Si el total devengado supera el fondo diario, se escala proporcionalmente
-    para respetar el tope. Retención de impuesto 12.5% sobre el bruto."""
+    para respetar el tope. Retención de impuesto 15.25% sobre el bruto."""
     fecha_hoy = datetime.datetime.now().strftime('%Y-%m-%d')
     avisos = calcular_avisos_contratados()
     ingreso_diario = config["presupuesto_total_mensual"] / config["dias_mes"]
@@ -759,7 +759,7 @@ def guardar_documento_legal(tipo):
 # ============================================
 # ✅ CÁLCULO DE PAGOS - MODELO MIXTO
 # Pago diario = km×$15 + impresiones×$30, con tope al 40% del ingreso diario
-# (avisos × precio / 30 días). Retención de impuesto 12.5% sobre el bruto
+# (avisos × precio / 30 días). Retención de impuesto 15.25% sobre el bruto
 # ============================================
 @app.route('/api/payments/calculate/<conductor_id>', methods=['GET'])
 def calcular_pago_conductor(conductor_id):
@@ -861,7 +861,7 @@ def export_csv():
         now = datetime.datetime.now()
         fecha_hoy = now.strftime('%Y-%m-%d')
         resumen = calcular_pagos_nuevo_modelo()
-        csv_content = "conductor_id,impresiones,km,devengo,pago_bruto,impuesto_12.5,pago_neto,fecha\n"
+        csv_content = "conductor_id,impresiones,km,devengo,pago_bruto,impuesto_15.25,pago_neto,fecha\n"
         for d in resumen['detalles']:
             csv_content += f"{d['conductor_id']},{d['total_impressions']},{d['km_acumulados_hoy']},{d['devengo']},{round(d['pago_bruto'])},{round(d['impuesto_retenido'])},{round(d['pago_neto'])},{fecha_hoy}\n"
         return app.response_class(response=csv_content, status=200, mimetype='text/csv', headers={'Content-Disposition': f'attachment;filename=pagos_adride_{fecha_hoy}.csv'})

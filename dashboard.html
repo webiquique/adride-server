@@ -186,7 +186,7 @@
                 Fórmula: <strong>Pago diario = km × $15 + impresiones × $30</strong>, tope 40% del ingreso diario
                 <br>📈 Ingreso diario = $309.400 / 30 días | 🚗 Cada km suma $15 y cada impresión $30
                 <br>⛔ Si el devengo total supera el fondo diario, se escala proporcionalmente
-                <br>🏛️ Retención de impuesto: <strong>12.5% sobre el pago bruto</strong>
+                <br>🏛️ Retención de impuesto: <strong>15.25% sobre el pago bruto</strong> (SII 2026)
                 <br><strong style="color: #FF9800;">⚠️ El pago se calcula sobre el día actual. Se procesa al cierre mensual.</strong>
             </p>
             <div id="payments-summary" class="loading">Cargando pagos...</div>
@@ -470,7 +470,7 @@
 
                 let html = `<table><thead><tr>
                         <th>Conductor</th><th>Impresiones</th><th>Km</th><th>Devengo</th>
-                        <th>Bruto</th><th>Impuesto (12.5%)</th><th>NETO</th>
+                        <th>Bruto</th><th>Impuesto (15.25%)</th><th>NETO</th>
                     </tr></thead><tbody>`;
 
                 data.detalles.forEach(p => {
@@ -499,7 +499,7 @@
                     formulaEl.innerHTML = `Fórmula: <strong>Pago diario = km × $15 + impresiones × $30</strong>, tope 40% del ingreso diario
                         <br>📈 Ingreso diario = $${(ingresoDiario * 30 || 0).toLocaleString('es-CL')} / 30 días (${avisosContratados} avisos) | 🚗 Cada km suma $15 y cada impresión $30
                         <br>⛔ Si el devengo total supera el fondo diario ($${fondoDiario.toLocaleString('es-CL')}), se escala proporcionalmente
-                        <br>🏛️ Retención de impuesto: <strong>12.5% sobre el pago bruto</strong>
+                        <br>🏛️ Retención de impuesto: <strong>15.25% sobre el pago bruto</strong> (SII 2026)
                         <br><strong style="color: #FF9800;">⚠️ El pago se calcula sobre el día actual. Se procesa al cierre mensual.</strong>`;
                 }
 
@@ -510,7 +510,7 @@
                         <p style="margin: 5px 0; color: #666;">${porcentajePayout} del ingreso diario (fondo $${fondoDiario.toLocaleString('es-CL')})</p>
                     </div>
                     <div style="padding: 15px; background: #fff3e0; border-radius: 8px; border-left: 4px solid #FF9800;">
-                        <h4 style="margin: 0 0 10px 0; color: #ef6c00;">🏛️ Impuestos Retenidos (12.5%)</h4>
+                        <h4 style="margin: 0 0 10px 0; color: #ef6c00;">🏛️ Impuestos Retenidos (15.25%)</h4>
                         <p style="font-size: 1.5em; margin: 0; color: #ef6c00;"><strong>$${impuestoTotal.toLocaleString('es-CL')} CLP</strong></p>
                         <p style="margin: 5px 0; color: #666;">retenidos para declarar</p>
                     </div>
